@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+model Property {
+  id               String                @id
+  canonicalAddress String
+  city             String
+  state            String
+  zipCode          String
+  neighborhood     String?
+  lat              Float
+  lng              Float
+  propertyType     String
+  listingType      String
+  beds             Float?
+  baths            Float?
+  squareFeet       Int?
+  price            Int?
+  hoa              Int?
+  amenities        Json
+  images           Json
+  description      String?
+  sourceSummary    String
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  sourceRecords    ListingSourceRecord[]
+  routeMetrics     RouteMetric[]
+  propertyScore    PropertyScore?
+}
+
+model ListingSourceRecord {
+  id              String   @id
+  propertyId      String
+  sourceName      String
+  sourceListingId String
+  sourceUrl       String
+  rawPayload      Json
+  price           Int?
+  beds            Float?
+  baths           Float?
+  squareFeet      Int?
+  status          String
+  thumbnailUrl    String?
+  lastSeenAt      DateTime
+  property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model CrimeMetric {
+  id              String   @id
+  geoId           String
+  lat             Float
+  lng             Float
+  radiusMiles     Float?
+  metricType      String
+  value           Float
+  normalizedScore Int
+  sourceName      String
+  comparisonLabel String?
+  effectiveDate   DateTime
+}
+
+model AmenityPOI {
+  id       String @id
+  name     String
+  category String
+  lat      Float
+  lng      Float
+  address  String
+  metadata Json?
+}
+
+model RouteMetric {
+  id                String   @id
+  propertyId        String
+  destinationType   String
+  destinationId     String
+  destinationLabel  String
+  walkingMinutes    Int?
+  driveMinutesOffPeak Int?
+  driveMinutesPeak  Int?
+  sourceName        String
+  updatedAt         DateTime
+  property          Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model UserPreferences {
+  id                 String   @id
+  budgetMin          Int?
+  budgetMax          Int?
+  minBeds            Float?
+  minBaths           Float?
+  minSqft            Int?
+  listingType        String
+  propertyTypes      Json
+  requiredAmenities  Json
+  preferredAmenities Json
+  scoringWeights     Json
+  hardRules          Json
+  softPreferences    Json
+  priorities         Json
+  savedPlaces        SavedPlace[]
+}
+
+model SavedPlace {
+  id               String          @id
+  userPreferencesId String
+  label            String
+  category         String
+  address          String
+  lat              Float
+  lng              Float
+  includeInScoring Boolean
+  preferences      UserPreferences @relation(fields: [userPreferencesId], references: [id], onDelete: Cascade)
+}
+
+model PropertyScore {
+  id                String   @id
+  propertyId        String   @unique
+  overallScore      Int
+  safetyScore       Int
+  accessibilityScore Int
+  lifestyleScore    Int
+  affordabilityScore Int
+  homeFitScore      Int
+  explanationJson   Json
+  computedAt        DateTime
+  property          Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}

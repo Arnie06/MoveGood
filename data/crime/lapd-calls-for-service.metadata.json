@@ -1,0 +1,9 @@
+{
+  "refreshedAt": "2026-04-19T07:11:04.413Z",
+  "sourceUrl": "https://data.lacity.org/api/views/xjgu-z4ju/rows.csv",
+  "note": "The official LAPD calls-for-service dataset is refreshed for recent context, but it is not currently used for map pins/heatmap because the published dataset metadata indicates it has no location column.",
+  "outputFiles": [
+    "/Users/alang/Documents/Personal/Apps/Housing_App/data/crime/lapd-calls-for-service.csv",
+    "/Users/alang/Documents/Personal/Apps/Housing_App/data/crime/lapd-calls-for-service.metadata.json"
+  ]
+}
