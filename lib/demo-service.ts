@@ -324,21 +324,46 @@ async function enrichPropertyContext(
     ...nearbyAmenities,
     ...preferences.savedPlaces.filter((place) => place.includeInScoring)
   ];
-  const routeMetrics =
-    effectiveProperty.listingType === "manual"
-      ? buildEstimatedRouteMetrics({
-          propertyId: effectiveProperty.id,
-          propertyLat: effectiveProperty.lat,
-          propertyLng: effectiveProperty.lng,
-          destinations: routingDestinations
-        })
-      : await routingProvider.getRouteMetrics({
-          propertyId: effectiveProperty.id,
-          propertyLat: effectiveProperty.lat,
-          propertyLng: effectiveProperty.lng,
-          destinations: routingDestinations,
-          includeTraffic: true
-        });
+  const estimatedRouteMetrics = buildEstimatedRouteMetrics({
+    propertyId: effectiveProperty.id,
+    propertyLat: effectiveProperty.lat,
+    propertyLng: effectiveProperty.lng,
+    destinations: routingDestinations
+  });
+
+  let routeMetrics: RouteMetric[];
+  if (effectiveProperty.listingType === "manual") {
+    try {
+      const liveRouteMetrics = await routingProvider.getRouteMetrics({
+        propertyId: effectiveProperty.id,
+        propertyLat: effectiveProperty.lat,
+        propertyLng: effectiveProperty.lng,
+        destinations: routingDestinations,
+        includeTraffic: true
+      });
+
+      const liveRouteKey = new Set(
+        liveRouteMetrics.map((route) => `${route.destinationType}:${route.destinationId}`)
+      );
+      const missingEstimatedRoutes = estimatedRouteMetrics.filter(
+        (route) => !liveRouteKey.has(`${route.destinationType}:${route.destinationId}`)
+      );
+      routeMetrics =
+        liveRouteMetrics.length > 0
+          ? [...liveRouteMetrics, ...missingEstimatedRoutes]
+          : estimatedRouteMetrics;
+    } catch {
+      routeMetrics = estimatedRouteMetrics;
+    }
+  } else {
+    routeMetrics = await routingProvider.getRouteMetrics({
+      propertyId: effectiveProperty.id,
+      propertyLat: effectiveProperty.lat,
+      propertyLng: effectiveProperty.lng,
+      destinations: routingDestinations,
+      includeTraffic: true
+    });
+  }
   const sources =
     effectiveProperty.providerKeys.some((key) => key.startsWith("rentcast"))
       ? buildLiveSources(effectiveProperty.id, effectiveProperty)

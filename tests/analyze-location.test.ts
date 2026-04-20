@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UserPreferences } from "@/lib/types/domain";
+import { SavedPlace, AmenityPOI } from "@/lib/types/domain";
 
 const mockGeocode = vi.fn();
 const mockReverseGeocode = vi.fn();
@@ -108,6 +109,21 @@ describe("analyzeLocation", () => {
         effectiveDate: now
       }
     ]);
+    mockGetRouteMetrics.mockImplementation(async (input) =>
+      input.destinations.map((destination: SavedPlace | AmenityPOI, index: number) => ({
+        id: `live-route-${index}`,
+        propertyId: input.propertyId,
+        destinationType:
+          "includeInScoring" in destination ? "saved-place" : destination.category,
+        destinationId: destination.id,
+        destinationLabel: "label" in destination ? destination.label : destination.name,
+        walkingMinutes: 8 + index,
+        driveMinutesOffPeak: 5 + index,
+        driveMinutesPeak: 7 + index,
+        sourceName: "test-route-live",
+        updatedAt: now
+      }))
+    );
 
     const preferences: UserPreferences = {
       id: "user-1",
@@ -142,7 +158,7 @@ describe("analyzeLocation", () => {
     expect(result?.property.canonicalAddress).toContain("123 Main St");
     expect(result?.nearbyAmenities.map((amenity) => amenity.category).sort()).toEqual(["grocery", "park"]);
     expect(result?.routeMetrics.length).toBe(3);
-    expect(result?.routeMetrics.every((route) => route.sourceName === "Estimated")).toBe(true);
+    expect(result?.routeMetrics.every((route) => route.sourceName === "test-route-live")).toBe(true);
     expect(
       result?.routeMetrics.every(
         (route) =>
@@ -168,6 +184,7 @@ describe("analyzeLocation", () => {
     mockGetNearbyAmenities.mockResolvedValue([]);
     mockGetCrimeIncidents.mockResolvedValue([]);
     mockGetSafetyMetrics.mockResolvedValue([]);
+    mockGetRouteMetrics.mockRejectedValue(new Error("Routing unavailable"));
 
     const { analyzeLocation } = await import("@/lib/demo-service");
     const result = await analyzeLocation({

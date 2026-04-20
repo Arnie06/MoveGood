@@ -131,10 +131,10 @@ describe("computePropertyScore", () => {
       preferences
     });
 
-    expect(score.overallScore).toBe(77);
+    expect(score.overallScore).toBe(71);
     expect(score.safetyScore).toBe(82);
-    expect(score.accessibilityScore).toBe(74);
-    expect(score.lifestyleScore).toBe(72);
+    expect(score.accessibilityScore).toBe(73);
+    expect(score.lifestyleScore).toBe(52);
     expect(score.highlights).toEqual([
       "Strong grocery access on foot",
       "Parks feel easy to reach",
@@ -180,12 +180,13 @@ describe("computePropertyScore", () => {
       preferences
     });
 
-    expect(score.overallScore).toBe(55);
-    expect(score.safetyScore).toBe(60);
+    expect(score.overallScore).toBe(25);
+    expect(score.safetyScore).toBe(52);
     expect(score.tradeoffs).toContain("Safety context is below the default comfort threshold");
+    expect(score.tradeoffs).toContain("Safety context is incomplete in this area");
     expect(score.failedMustHaves).toEqual(["Safety >= 70"]);
     expect(score.dataCompleteness).toEqual([
-      "Safety data is unavailable, so the score uses a neutral fallback",
+      "Safety data is unavailable, so the score uses a conservative baseline",
       "Travel-time data is limited, so commute scoring is conservative",
       "Square footage is missing and home fit is estimated",
       "Some saved places could not be routed, so personal-place scoring is partial"

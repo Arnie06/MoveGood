@@ -20,6 +20,15 @@ function countAmenities(amenities: AmenityPOI[], category: string) {
   return amenities.filter((amenity) => amenity.category === category).length;
 }
 
+function countWalkableRoutes(routes: RouteMetric[], type: string, maxWalkMinutes: number) {
+  return routes.filter(
+    (route) =>
+      route.destinationType === type &&
+      route.walkingMinutes != null &&
+      route.walkingMinutes <= maxWalkMinutes
+  ).length;
+}
+
 function average(values: number[]) {
   if (!values.length) return undefined;
   return values.reduce((total, value) => total + value, 0) / values.length;
@@ -36,7 +45,7 @@ export function computePropertyScore(input: {
   const scoreWeights = preferences?.scoringWeights ?? defaultWeights;
 
   const overallCrime =
-    input.crimeMetrics.find((metric) => metric.metricType === "overall")?.normalizedScore ?? 60;
+    input.crimeMetrics.find((metric) => metric.metricType === "overall")?.normalizedScore ?? 52;
 
   const groceryWalk = nearestRoute(input.routeMetrics, "grocery")?.walkingMinutes ?? 16;
   const parkWalk = nearestRoute(input.routeMetrics, "park")?.walkingMinutes ?? 18;
@@ -55,6 +64,10 @@ export function computePropertyScore(input: {
   const avgSavedPlacePeak = average(savedPlacePeakTimes);
   const closeSavedPlaces = savedPlacePeakTimes.filter((value) => value <= 25).length;
   const missingSavedPlaceRoutes = Math.max(0, includedSavedPlaces.length - savedPlaceRoutes.length);
+  const groceryWalkable = countWalkableRoutes(input.routeMetrics, "grocery", 20);
+  const parkWalkable = countWalkableRoutes(input.routeMetrics, "park", 20);
+  const coffeeWalkable = countWalkableRoutes(input.routeMetrics, "coffee", 20);
+  const barWalkable = countWalkableRoutes(input.routeMetrics, "bar", 20);
   const personalPlaceScore =
     includedSavedPlaces.length === 0
       ? 60
@@ -67,16 +80,19 @@ export function computePropertyScore(input: {
 
   const safetyScore = clampScore(overallCrime);
   const accessibilityScore = clampScore(
-    (100 - groceryWalk * 2.8 + countAmenities(input.nearbyAmenities, "grocery") * 3) * 0.76 +
-      personalPlaceScore * 0.24
+    94 -
+      groceryWalk * 2.6 +
+      Math.min(5, groceryWalkable) * 3 +
+      (personalPlaceScore - 60) * 0.38
   );
   const lifestyleScore = clampScore(
-    72 +
-      countAmenities(input.nearbyAmenities, "park") * 4 +
-      countAmenities(input.nearbyAmenities, "coffee") * 2 -
-      countAmenities(input.nearbyAmenities, "bar") * 3 -
-      parkWalk +
-      closeSavedPlaces * 1.5
+    70 -
+      parkWalk * 1.8 -
+      coffeeWalk * 0.9 +
+      Math.min(6, parkWalkable) * 3 +
+      Math.min(6, coffeeWalkable) * 2 -
+      Math.min(6, barWalkable) * 1.5 +
+      closeSavedPlaces
   );
 
   const targetBudget = input.property.listingType === "sale" ? 750000 : 3200;
@@ -90,12 +106,18 @@ export function computePropertyScore(input: {
     45 + beds * 15 + baths * 8 + Math.min(18, Math.round((sqft - 600) / 40))
   );
 
+  const confidencePenalty =
+    (input.crimeMetrics.length === 0 ? 6 : 0) +
+    (input.routeMetrics.length === 0 ? 8 : 0) +
+    Math.min(6, missingSavedPlaceRoutes * 2);
+
   const weighted =
     safetyScore * (scoreWeights.safety / 100) +
     accessibilityScore * (scoreWeights.accessibility / 100) +
     affordabilityScore * (scoreWeights.affordability / 100) +
     homeFitScore * (scoreWeights.homeFit / 100) +
-    lifestyleScore * (scoreWeights.lifestyle / 100);
+    lifestyleScore * (scoreWeights.lifestyle / 100) -
+    confidencePenalty;
 
   const explanations = {
     overall:
@@ -129,7 +151,10 @@ export function computePropertyScore(input: {
   if (includedSavedPlaces.length > 0 && (avgSavedPlacePeak ?? 0) > 30) {
     tradeoffs.push("Included personal places are a longer drive on average");
   }
-  if (!input.crimeMetrics.length) dataCompleteness.push("Safety data is unavailable, so the score uses a neutral fallback");
+  if (!input.crimeMetrics.length) tradeoffs.push("Safety context is incomplete in this area");
+  if (!input.crimeMetrics.length) {
+    dataCompleteness.push("Safety data is unavailable, so the score uses a conservative baseline");
+  }
   if (!input.routeMetrics.length) dataCompleteness.push("Travel-time data is limited, so commute scoring is conservative");
   if (!input.property.squareFeet) dataCompleteness.push("Square footage is missing and home fit is estimated");
   if (includedSavedPlaces.length > 0 && missingSavedPlaceRoutes > 0) {
