@@ -211,11 +211,24 @@ export async function getLosAngelesAmenities(
   categories: AmenityCategory[] = ["grocery", "gym", "park", "restaurant", "coffee", "bar"]
 ) {
   const apiKey = process.env.GEOAPIFY_API_KEY?.trim();
-  if (!apiKey) return [];
-
   const uniqueCategories = Array.from(new Set(categories));
   const groups = await Promise.all(
-    uniqueCategories.map((category) => fetchLosAngelesCategoryAmenities(category, apiKey))
+    uniqueCategories.map(async (category) => {
+      const cached = await readApiCache<AmenityPOI[]>({
+        namespace: "geoapify-los-angeles",
+        keyParts: [buildCategoryKey(category)],
+        ttlMs: LOS_ANGELES_POI_CACHE_TTL_MS
+      });
+      if (cached !== null) {
+        return cached;
+      }
+
+      if (!apiKey) {
+        return [];
+      }
+
+      return fetchLosAngelesCategoryAmenities(category, apiKey);
+    })
   );
   return dedupeAmenities(groups.flat());
 }

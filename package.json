@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -H 0.0.0.0 -p ${PORT:-3000}",
     "lint": "next lint",
     "crime:import-lasd": "tsx scripts/import_lasd_crime_data.ts",
     "crime:refresh-lapd-calls": "tsx scripts/refresh_lapd_calls_for_service.ts",

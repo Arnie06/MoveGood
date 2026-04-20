@@ -55,7 +55,9 @@ export async function GET(request: NextRequest) {
         north,
         categories
       });
-      return NextResponse.json({ amenities: visibleAmenities });
+      if (visibleAmenities.length > 0) {
+        return NextResponse.json({ amenities: visibleAmenities });
+      }
     }
 
     const poiProvider = getPoiProvider();
