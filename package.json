@@ -9,6 +9,8 @@
     "lint": "next lint",
     "crime:import-lasd": "tsx scripts/import_lasd_crime_data.ts",
     "crime:refresh-lapd-calls": "tsx scripts/refresh_lapd_calls_for_service.ts",
+    "pois:export-la-cache": "tsx scripts/export_cached_la_pois.ts",
+    "pois:refresh-la-osm": "tsx scripts/refresh_la_pois_from_overpass.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts"

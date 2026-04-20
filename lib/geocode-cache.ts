@@ -18,12 +18,24 @@ function roundCoordinate(value: number, places: number) {
   return value.toFixed(places);
 }
 
+function isLegacyMockFallback(result: GeocodedLocation | null) {
+  if (!result) return false;
+  return (
+    Math.abs(result.lat - 40.7128) < 0.0002 &&
+    Math.abs(result.lng - -74.006) < 0.0002 &&
+    result.city === "New York" &&
+    result.state === "NY" &&
+    result.zipCode === "10001"
+  );
+}
+
 export async function readCachedGeocode(address: string) {
-  return readApiCache<GeocodedLocation | null>({
+  const result = await readApiCache<GeocodedLocation | null>({
     namespace: GEOCODE_CACHE_NAMESPACE,
     keyParts: ["forward", normalizeAddress(address)],
     ttlMs: GEOCODE_CACHE_TTL_MS
   });
+  return isLegacyMockFallback(result) ? null : result;
 }
 
 export async function writeCachedGeocode(address: string, result: GeocodedLocation | null) {
@@ -62,11 +74,21 @@ export async function writeCachedReverseGeocode(
 }
 
 export async function readCachedAutocomplete(query: string, limit: number) {
-  return readApiCache<AddressSuggestion[]>({
+  const results = await readApiCache<AddressSuggestion[]>({
     namespace: GEOCODE_CACHE_NAMESPACE,
     keyParts: ["autocomplete", normalizeQuery(query), limit],
     ttlMs: GEOCODE_CACHE_TTL_MS
   });
+  return (results ?? []).filter(
+    (result) =>
+      !(
+        Math.abs(result.lat - 40.7128) < 0.0002 &&
+        Math.abs(result.lng - -74.006) < 0.0002 &&
+        result.city === "New York" &&
+        result.state === "NY" &&
+        result.zipCode === "10001"
+      )
+  );
 }
 
 export async function writeCachedAutocomplete(

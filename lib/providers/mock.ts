@@ -43,14 +43,7 @@ export class MockGeocoderProvider implements GeocoderProvider {
       };
     }
 
-    return {
-      canonicalAddress: address,
-      lat: 40.7128,
-      lng: -74.006,
-      city: "New York",
-      state: "NY",
-      zipCode: "10001"
-    };
+    return null;
   }
 
   async reverseGeocode(input: { lat: number; lng: number }): Promise<GeocodedLocation> {
@@ -91,17 +84,7 @@ export class MockGeocoderProvider implements GeocoderProvider {
       return matches;
     }
 
-    return [
-      {
-        label: query,
-        canonicalAddress: query,
-        lat: 40.7128,
-        lng: -74.006,
-        city: "New York",
-        state: "NY",
-        zipCode: "10001"
-      }
-    ];
+    return [];
   }
 }
 

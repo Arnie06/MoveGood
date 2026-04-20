@@ -259,6 +259,38 @@ Note:
 - Based on published metadata, it does not currently expose a location column, so the app does not use it directly for map pins or the heatmap.
 - The local LASD imports and the geocoded LAPD crime datasets remain the map-ready sources.
 
+## Local POI dataset
+
+The map can now serve Los Angeles POIs from a checked-in local dataset:
+
+- `data/pois/los-angeles.json`
+- `data/pois/los-angeles.metadata.json`
+
+If you already have hydrated Geoapify county cache files under `.runtime/api-cache/geoapify-los-angeles`, you can export them into the local dataset with:
+
+```bash
+node --import tsx scripts/export_cached_la_pois.ts
+```
+
+If you want to refresh the dataset directly from OpenStreetMap Overpass, run:
+
+```bash
+node --import tsx scripts/refresh_la_pois_from_overpass.ts
+```
+
+That refresh script writes both the POI dataset and a metadata file with the last refresh time and source details.
+
+Suggested refresh cadence:
+
+- Weekly for active product use
+- Every 2 to 4 weeks if you want lower maintenance and can tolerate slower POI freshness
+
+For production, the recommended flow is:
+
+1. Run the POI refresh script on a schedule.
+2. Commit the updated `data/pois/los-angeles.json` and metadata file.
+3. Redeploy Railway so the new local dataset ships with the app.
+
 ## Optional database setup
 
 If you want to use PostgreSQL for the included schema and seed flow:
@@ -302,7 +334,7 @@ Important ones:
 
 Live API responses are cached on disk under `.runtime/api-cache`. By default, once data is pulled it is reused for 72 hours before the app fetches it again.
 
-The map now preloads Los Angeles POIs category-by-category from Geoapify with pagination, caches the citywide dataset on disk, and renders only the POIs inside the current viewport as you pan and zoom.
+The map can use a checked-in local Los Angeles POI dataset first, then fall back to the older runtime cache or live provider paths when needed.
 
 If you configure a local Pelias-compatible geocoder, you can verify connectivity at:
 

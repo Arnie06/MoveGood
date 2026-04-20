@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { getLocalPoisInBounds } from "@/lib/local-pois";
 import { getLosAngelesAmenitiesInBounds, intersectsLosAngelesBounds } from "@/lib/los-angeles-pois";
 import { getPoiProvider } from "@/lib/providers/registry";
 import { MockPoiProvider } from "@/lib/providers/mock";
@@ -46,6 +47,17 @@ export async function GET(request: NextRequest) {
     .filter(Boolean) as AmenityCategory[] | undefined;
 
   try {
+    const localAmenities = await getLocalPoisInBounds({
+      west,
+      south,
+      east,
+      north,
+      categories
+    });
+    if (localAmenities.length > 0) {
+      return NextResponse.json({ amenities: localAmenities });
+    }
+
     const isWithinCountyCacheRegion = intersectsLosAngelesBounds({ west, south, east, north });
     if (isWithinCountyCacheRegion) {
       const visibleAmenities = await getLosAngelesAmenitiesInBounds({
