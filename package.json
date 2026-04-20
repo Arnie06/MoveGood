@@ -7,6 +7,11 @@
     "build": "next build",
     "start": "node --import tsx scripts/start_app.ts",
     "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:analysis": "vitest run tests/scoring.test.ts tests/route-metrics.test.ts tests/analyze-location.test.ts",
+    "verify:data": "node --import tsx scripts/verify_data_quality.ts",
+    "verify:data:strict": "node --import tsx scripts/verify_data_quality.ts --strict",
     "crime:import-lasd": "tsx scripts/import_lasd_crime_data.ts",
     "crime:refresh-lapd-calls": "tsx scripts/refresh_lapd_calls_for_service.ts",
     "geocoder:bootstrap": "node --import tsx scripts/bootstrap_address_dataset.ts",
@@ -39,6 +44,7 @@
     "postcss": "^8.4.49",
     "prisma": "^5.22.0",
     "tailwindcss": "^3.4.17",
+    "vitest": "^2.1.9",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }
