@@ -366,15 +366,21 @@ export async function analyzeLocation(input: {
   preferences?: UserPreferences;
 }) {
   const preferences = input.preferences ?? defaultPreferences;
+  const coordinates =
+    input.lat != null && input.lng != null
+      ? {
+          lat: input.lat,
+          lng: input.lng
+        }
+      : null;
 
   let geocoded: GeocodedLocation | null = null;
   if (input.address?.trim()) {
     geocoded = await cachedGeocode(input.address.trim());
-  } else if (input.lat != null && input.lng != null) {
-    geocoded = await cachedReverseGeocode({
-      lat: input.lat,
-      lng: input.lng
-    });
+  }
+
+  if (!geocoded && coordinates) {
+    geocoded = await cachedReverseGeocode(coordinates);
   }
 
   if (!geocoded) return null;
