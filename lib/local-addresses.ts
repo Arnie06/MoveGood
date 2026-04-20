@@ -60,6 +60,41 @@ export function normalizeAddressSearch(value: string) {
   );
 }
 
+function unique<T>(values: T[]) {
+  return Array.from(new Set(values));
+}
+
+function getMeaningfulTokens(value: string) {
+  return value
+    .split(" ")
+    .map((token) => token.trim())
+    .filter(
+      (token) =>
+        token.length > 1 &&
+        token !== "ca" &&
+        !/^\d{5}$/.test(token)
+    );
+}
+
+function buildQueryVariants(normalizedQuery: string) {
+  const variants = [normalizedQuery];
+  const tokens = normalizedQuery.split(" ").filter(Boolean);
+
+  while (tokens.length > 3) {
+    const lastToken = tokens[tokens.length - 1];
+    const shouldStrip =
+      lastToken === "ca" ||
+      /^\d{5}$/.test(lastToken) ||
+      tokens.length >= 2;
+
+    if (!shouldStrip) break;
+    tokens.pop();
+    variants.push(tokens.join(" "));
+  }
+
+  return unique(variants.filter(Boolean));
+}
+
 function getSearchShardKey(normalized: string, prefixLength: number) {
   const compact = normalized.replace(/[^a-z0-9]/g, "");
   if (!compact) return "_";
@@ -201,6 +236,7 @@ async function getReverseShard(key: string) {
 
 function scoreSearchMatch(record: LocalAddressRecord, normalizedQuery: string) {
   const keys = buildSearchKeys(record);
+  const queryTokens = getMeaningfulTokens(normalizedQuery);
   let bestScore = Number.POSITIVE_INFINITY;
 
   for (const key of keys) {
@@ -216,6 +252,15 @@ function scoreSearchMatch(record: LocalAddressRecord, normalizedQuery: string) {
 
     if (key.includes(normalizedQuery)) {
       bestScore = Math.min(bestScore, 100 + key.indexOf(normalizedQuery));
+      continue;
+    }
+
+    if (queryTokens.length > 0) {
+      const keyTokens = new Set(key.split(" ").filter(Boolean));
+      const matchedTokens = queryTokens.filter((token) => keyTokens.has(token)).length;
+      if (matchedTokens === queryTokens.length) {
+        bestScore = Math.min(bestScore, 200 + (keyTokens.size - queryTokens.length));
+      }
     }
   }
 
@@ -226,10 +271,17 @@ export async function geocodeLocalAddress(address: string) {
   const normalizedQuery = normalizeAddressSearch(address);
   if (!normalizedQuery) return null;
 
-  const records = await getSearchShard(normalizedQuery);
-  if (!records.length) return null;
+  const records = new Map<string, LocalAddressRecord>();
+  for (const variant of buildQueryVariants(normalizedQuery)) {
+    const shardRecords = await getSearchShard(variant);
+    for (const record of shardRecords) {
+      records.set(record.id, record);
+    }
+  }
 
-  const matches = records
+  if (!records.size) return null;
+
+  const matches = Array.from(records.values())
     .map((record) => {
       const score = scoreSearchMatch(record, normalizedQuery);
       return score == null ? null : { record, score };
@@ -247,10 +299,17 @@ export async function autocompleteLocalAddress(query: string, limit = 5) {
   const normalizedQuery = normalizeAddressSearch(query);
   if (!normalizedQuery) return [];
 
-  const records = await getSearchShard(normalizedQuery);
-  if (!records.length) return [];
+  const records = new Map<string, LocalAddressRecord>();
+  for (const variant of buildQueryVariants(normalizedQuery)) {
+    const shardRecords = await getSearchShard(variant);
+    for (const record of shardRecords) {
+      records.set(record.id, record);
+    }
+  }
 
-  return records
+  if (!records.size) return [];
+
+  return Array.from(records.values())
     .map((record) => {
       const score = scoreSearchMatch(record, normalizedQuery);
       return score == null ? null : { record, score };
@@ -358,4 +417,3 @@ export function getLocalAddressShardKeys(record: LocalAddressRecord, manifest?: 
     )
   };
 }
-
