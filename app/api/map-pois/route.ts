@@ -4,7 +4,7 @@ import { getLocalPoisInBounds } from "@/lib/local-pois";
 import { getLosAngelesAmenitiesInBounds, intersectsLosAngelesBounds } from "@/lib/los-angeles-pois";
 import { getPoiProvider } from "@/lib/providers/registry";
 import { MockPoiProvider } from "@/lib/providers/mock";
-import { AmenityCategory } from "@/lib/types/domain";
+import { AmenityCategory, AmenityPOI } from "@/lib/types/domain";
 
 function parseNumber(value: string | null) {
   if (!value) return null;
@@ -29,6 +29,43 @@ function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number) 
   return 2 * earthRadiusMiles * Math.asin(Math.sqrt(a));
 }
 
+function filterAmenitiesToBounds(
+  amenities: AmenityPOI[],
+  bounds: { west: number; south: number; east: number; north: number }
+) {
+  return amenities.filter(
+    (amenity) =>
+      amenity.lng >= bounds.west &&
+      amenity.lng <= bounds.east &&
+      amenity.lat >= bounds.south &&
+      amenity.lat <= bounds.north
+  );
+}
+
+function dedupeAmenities(amenities: AmenityPOI[]) {
+  return Array.from(
+    new Map(
+      amenities.map((amenity) => [
+        `${amenity.category}:${amenity.id}:${amenity.lat.toFixed(5)}:${amenity.lng.toFixed(5)}`,
+        amenity
+      ])
+    ).values()
+  );
+}
+
+function getMissingCategories(
+  requestedCategories: AmenityCategory[] | undefined,
+  amenities: AmenityPOI[]
+) {
+  if (!requestedCategories?.length) {
+    return undefined;
+  }
+
+  const presentCategories = new Set(amenities.map((amenity) => amenity.category));
+  const missing = requestedCategories.filter((category) => !presentCategories.has(category));
+  return missing.length > 0 ? missing : [];
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const west = parseNumber(searchParams.get("west"));
@@ -47,6 +84,7 @@ export async function GET(request: NextRequest) {
     .filter(Boolean) as AmenityCategory[] | undefined;
 
   try {
+    const bounds = { west, south, east, north };
     const localAmenities = await getLocalPoisInBounds({
       west,
       south,
@@ -54,22 +92,20 @@ export async function GET(request: NextRequest) {
       north,
       categories
     });
-    if (localAmenities.length > 0) {
-      return NextResponse.json({ amenities: localAmenities });
-    }
+    let combinedAmenities = [...localAmenities];
+    let missingCategories = getMissingCategories(categories, combinedAmenities);
 
-    const isWithinCountyCacheRegion = intersectsLosAngelesBounds({ west, south, east, north });
-    if (isWithinCountyCacheRegion) {
+    const isWithinCountyCacheRegion = intersectsLosAngelesBounds(bounds);
+    if (isWithinCountyCacheRegion && missingCategories !== undefined ? missingCategories.length > 0 : true) {
       const visibleAmenities = await getLosAngelesAmenitiesInBounds({
         west,
         south,
         east,
         north,
-        categories
+        categories: missingCategories === undefined ? categories : missingCategories
       });
-      if (visibleAmenities.length > 0) {
-        return NextResponse.json({ amenities: visibleAmenities });
-      }
+      combinedAmenities = dedupeAmenities([...combinedAmenities, ...visibleAmenities]);
+      missingCategories = getMissingCategories(categories, combinedAmenities);
     }
 
     const poiProvider = getPoiProvider();
@@ -87,31 +123,23 @@ export async function GET(request: NextRequest) {
       lat: centerLat,
       lng: centerLng,
       radiusMiles: Math.min(8, Math.max(0.75, radiusMiles)),
-      categories
+      categories: missingCategories === undefined ? categories : missingCategories
     };
 
-    const amenities = await poiProvider.getNearbyAmenities(providerRequest);
-
-    let visibleAmenities = amenities.filter(
-      (amenity) =>
-        amenity.lng >= west &&
-        amenity.lng <= east &&
-        amenity.lat >= south &&
-        amenity.lat <= north
-    );
-
-    if (visibleAmenities.length === 0) {
-      const fallbackAmenities = await fallbackPoiProvider.getNearbyAmenities(providerRequest);
-      visibleAmenities = fallbackAmenities.filter(
-        (amenity) =>
-          amenity.lng >= west &&
-          amenity.lng <= east &&
-          amenity.lat >= south &&
-          amenity.lat <= north
-      );
+    if (providerRequest.categories === undefined || providerRequest.categories.length > 0) {
+      const amenities = await poiProvider.getNearbyAmenities(providerRequest);
+      combinedAmenities = dedupeAmenities([
+        ...combinedAmenities,
+        ...filterAmenitiesToBounds(amenities, bounds)
+      ]);
     }
 
-    return NextResponse.json({ amenities: visibleAmenities });
+    if (combinedAmenities.length === 0) {
+      const fallbackAmenities = await fallbackPoiProvider.getNearbyAmenities(providerRequest);
+      combinedAmenities = filterAmenitiesToBounds(fallbackAmenities, bounds);
+    }
+
+    return NextResponse.json({ amenities: combinedAmenities });
   } catch (error) {
     console.error("Failed to load map POIs", error);
     return NextResponse.json({ amenities: [] }, { status: 500 });

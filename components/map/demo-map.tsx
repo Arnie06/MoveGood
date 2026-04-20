@@ -313,6 +313,7 @@ export function DemoMap({
   const propertyMarkerRefs = useRef<maplibregl.Marker[]>([]);
   const searchMarkerRef = useRef<maplibregl.Marker | null>(null);
   const overlayMarkerRefs = useRef<maplibregl.Marker[]>([]);
+  const hoverPopupRef = useRef<maplibregl.Popup | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
   const [activeId, setActiveId] = useState<string | undefined>(selectedId ?? items[0]?.property.id);
   const [isolatedId, setIsolatedId] = useState<string | undefined>(
@@ -778,8 +779,26 @@ export function DemoMap({
 
     overlayMarkerRefs.current.forEach((marker) => marker.remove());
     overlayMarkerRefs.current = [];
+    hoverPopupRef.current?.remove();
+    hoverPopupRef.current = null;
 
     const activeMap = mapRef.current;
+    const showHoverPopup = (lng: number, lat: number, title: string, lines: string[]) => {
+      hoverPopupRef.current?.remove();
+      hoverPopupRef.current = new maplibregl.Popup({
+        offset: 12,
+        closeButton: false,
+        closeOnClick: false,
+        className: "pointer-events-none"
+      })
+        .setLngLat([lng, lat])
+        .setDOMContent(createPopupNode(title, lines))
+        .addTo(activeMap);
+    };
+    const hideHoverPopup = () => {
+      hoverPopupRef.current?.remove();
+      hoverPopupRef.current = null;
+    };
 
     const addAmenityMarkers = (category: AmenityCategory, overlay: Exclude<OverlayKey, "crime">) => {
       if (!showPoiOverlays || !visibleOverlays[overlay]) return;
@@ -801,7 +820,6 @@ export function DemoMap({
           });
           element.dataset.mapMarker = "true";
           element.dataset.markerKind = "amenity";
-          element.title = `${amenity.name}\n${amenity.address}`;
           if (isHighlighted) {
             element.style.width = "20px";
             element.style.height = "20px";
@@ -814,11 +832,13 @@ export function DemoMap({
             element.style.boxShadow = isHighlighted
               ? "0 0 0 4px rgba(249, 115, 22, 0.24)"
               : "0 0 0 3px rgba(15, 23, 42, 0.12)";
+            showHoverPopup(amenity.lng, amenity.lat, amenity.name, [amenity.address]);
           };
 
           element.onmouseleave = () => {
             element.style.filter = "";
             element.style.boxShadow = isHighlighted ? "0 0 0 3px rgba(249, 115, 22, 0.2)" : "";
+            hideHoverPopup();
           };
 
           if (browseMode && onLocationSelect) {
@@ -859,7 +879,6 @@ export function DemoMap({
         });
         element.dataset.mapMarker = "true";
         element.dataset.markerKind = "crime";
-        element.title = `${incident.label}\n${incident.blockAddress ?? "Approximate nearby block"}`;
         element.style.width = "12px";
         element.style.height = "12px";
         element.style.minWidth = "12px";
@@ -867,11 +886,15 @@ export function DemoMap({
         element.onmouseenter = () => {
           element.style.filter = "brightness(0.95)";
           element.style.boxShadow = "0 0 0 3px rgba(186, 62, 47, 0.14)";
+          showHoverPopup(incident.lng, incident.lat, incident.label, [
+            incident.blockAddress ?? "Approximate nearby block"
+          ]);
         };
 
         element.onmouseleave = () => {
           element.style.filter = "";
           element.style.boxShadow = "";
+          hideHoverPopup();
         };
 
         element.onclick = (event) => {
@@ -894,6 +917,11 @@ export function DemoMap({
     addAmenityMarkers("restaurant", "restaurant");
     addAmenityMarkers("coffee", "coffee");
     addAmenityMarkers("bar", "bar");
+
+    return () => {
+      hoverPopupRef.current?.remove();
+      hoverPopupRef.current = null;
+    };
   }, [
     activeItem,
     browseMode,
