@@ -8,6 +8,8 @@ import {
   LAPDSafetyProvider,
   LocalPeliasGeocoderProvider
 } from "@/lib/providers/live";
+import { hasLocalAddressDataset } from "@/lib/local-addresses";
+import { LocalDatasetGeocoderProvider } from "@/lib/providers/local";
 import { MockGeocoderProvider, MockPoiProvider, MockRoutingProvider, MockSafetyProvider } from "@/lib/providers/mock";
 
 function chooseProvider<T>(mode: string, live: T, mock: T): T {
@@ -19,12 +21,19 @@ function chooseProvider<T>(mode: string, live: T, mock: T): T {
 export function getGeocoderProvider(): GeocoderProvider {
   const mode = getProviderMode("geocoder");
   const localBaseUrl = process.env.LOCAL_GEOCODER_BASE_URL?.trim();
+  const hasLocalDataset = hasLocalAddressDataset();
   if (mode === "local") {
-    return localBaseUrl ? new LocalPeliasGeocoderProvider() : new MockGeocoderProvider();
+    if (localBaseUrl) return new LocalPeliasGeocoderProvider();
+    if (hasLocalDataset) return new LocalDatasetGeocoderProvider();
+    return new MockGeocoderProvider();
   }
 
   if (mode === "auto" && localBaseUrl) {
     return new LocalPeliasGeocoderProvider();
+  }
+
+  if (mode === "auto" && hasLocalDataset) {
+    return new LocalDatasetGeocoderProvider();
   }
 
   const live: GeocoderProvider = new GeoapifyGeocoderProvider();

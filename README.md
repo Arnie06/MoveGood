@@ -240,6 +240,57 @@ You can also pass custom CSV paths:
 npm run crime:import-lasd -- /absolute/path/to/file1.csv /absolute/path/to/file2.csv
 ```
 
+## Local address geocoder
+
+The app can geocode Los Angeles County addresses from a local dataset built from the public LA County CAMS address points layer.
+
+To import the local address dataset:
+
+```bash
+npm run geocoder:import-cams
+```
+
+To check whether the dataset build is finished and whether the manifest looks complete:
+
+```bash
+npm run geocoder:status
+```
+
+To download the address dataset archive into `data/addresses/la-addresses/` when it is missing:
+
+```bash
+npm run geocoder:bootstrap
+```
+
+This writes sharded local geocoder data under:
+
+- `data/addresses/la-addresses/manifest.json`
+- `data/addresses/la-addresses/search/*.json`
+- `data/addresses/la-addresses/reverse/*.json`
+
+Recommended production setup:
+
+- `GEOCODER_PROVIDER=local`
+- no `GEOAPIFY_API_KEY` required for address lookup once the dataset is imported
+
+Behavior:
+
+- If `LOCAL_GEOCODER_BASE_URL` is set, the app prefers that external Pelias-compatible service
+- Otherwise, if the local CAMS-derived dataset exists, the app uses the built-in local dataset geocoder
+- Otherwise, the app falls back to the configured live/mock provider path
+
+Suggested refresh cadence:
+
+- monthly or quarterly for address data
+
+Useful environment variables:
+
+- `CAMS_LAYER_URL=...` override the ArcGIS query endpoint
+- `CAMS_PAGE_SIZE=2000` page size for import
+- `CAMS_MAX_PAGES=0` import all pages; set a positive value to test with a partial import
+- `ADDRESS_DATASET_URL=...` URL to a hosted `la-addresses.tar.gz` archive for Railway/bootstrap downloads
+- `ADDRESS_DATASET_SHA256=...` optional SHA-256 checksum for the hosted dataset archive
+
 ## LAPD calls refresh
 
 You can refresh the official LAPD calls-for-service snapshot with:
@@ -326,6 +377,7 @@ Important ones:
 - `NEXT_PUBLIC_GEOAPIFY_KEY=...`
 - `NEXT_PUBLIC_ENABLE_ADDRESS_AUTOCOMPLETE=true|false` optional; defaults to `false` so users submit typed addresses manually instead of triggering suggestion requests while typing
 - `LOCAL_GEOCODER_BASE_URL=...` optional Pelias-compatible self-hosted geocoder base URL; in `auto` mode this is preferred over Geoapify when present
+- A local CAMS-derived address dataset under `data/addresses/la-addresses/` can also satisfy `GEOCODER_PROVIDER=local` without a separate geocoder service
 - `ENABLE_REMOTE_CRIME_FETCH=true|false` optional; defaults to `false` so analyzed-location crime uses bundled/local snapshots instead of live request-time fetches
 - `NEXT_PUBLIC_MAP_STYLE_URL=...`
 - `API_CACHE_TTL_MS=259200000` shared API cache window, default 72 hours
@@ -340,7 +392,24 @@ If you configure a local Pelias-compatible geocoder, you can verify connectivity
 
 - `/api/system/geocoder-status`
 
-That endpoint reports the configured/effective geocoder mode and whether the local backend is reachable.
+That endpoint reports the configured/effective geocoder mode and whether the local backend or local dataset is available.
+
+## Railway dataset bootstrap
+
+For Railway, the recommended setup is:
+
+1. Host the compressed address dataset archive externally, for example as a GitHub release asset.
+2. Set:
+
+```bash
+GEOCODER_PROVIDER=local
+ADDRESS_DATASET_URL=https://...
+ADDRESS_DATASET_SHA256=optional_sha256_here
+```
+
+3. Keep the generated `data/addresses/la-addresses/` directory out of Git.
+
+On startup, the app now checks for the local dataset. If it is missing and `ADDRESS_DATASET_URL` is set, it downloads and extracts the archive automatically before starting Next.js.
 
 ## Limitations
 
