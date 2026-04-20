@@ -195,6 +195,30 @@ async function cachedGeocode(address: string) {
   return result;
 }
 
+async function resolveAddressInput(address: string) {
+  const normalizedAddress = address.trim();
+  if (!normalizedAddress) return null;
+
+  const directMatch = await cachedGeocode(normalizedAddress);
+  if (directMatch) {
+    return directMatch;
+  }
+
+  const suggestion = (await cachedAutocomplete(normalizedAddress, 1))[0];
+  if (!suggestion) {
+    return null;
+  }
+
+  return {
+    canonicalAddress: suggestion.canonicalAddress,
+    lat: suggestion.lat,
+    lng: suggestion.lng,
+    city: suggestion.city,
+    state: suggestion.state,
+    zipCode: suggestion.zipCode
+  } satisfies GeocodedLocation;
+}
+
 async function cachedReverseGeocode(input: { lat: number; lng: number }) {
   const cached = await readCachedReverseGeocode(input);
   if (cached !== null) {
@@ -345,7 +369,7 @@ export async function buildManualAddressContext(input: {
   geocoded?: Awaited<ReturnType<typeof geocoderProvider.geocode>>;
 }): Promise<AnalyzedLocation | null> {
   const preferences = input.preferences ?? defaultPreferences;
-  const geocoded = input.geocoded ?? (await cachedGeocode(input.address));
+  const geocoded = input.geocoded ?? (await resolveAddressInput(input.address));
   if (!geocoded) return null;
   return enrichPropertyContext(
     buildManualPropertyFromLocation(geocoded, input.overrides),
@@ -354,7 +378,7 @@ export async function buildManualAddressContext(input: {
 }
 
 export async function evaluateManualAddress(address: string) {
-  const geocoded = await cachedGeocode(address);
+  const geocoded = await resolveAddressInput(address);
   return geocoded;
 }
 
@@ -376,7 +400,7 @@ export async function analyzeLocation(input: {
 
   let geocoded: GeocodedLocation | null = null;
   if (input.address?.trim()) {
-    geocoded = await cachedGeocode(input.address.trim());
+    geocoded = await resolveAddressInput(input.address);
   }
 
   if (!geocoded && coordinates) {
