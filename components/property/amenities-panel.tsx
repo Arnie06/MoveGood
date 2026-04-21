@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { amenityColorMap } from "@/lib/poi-colors";
+import { getNearestRouteByType } from "@/lib/route-metrics";
 import { AnalyzedLocation } from "@/lib/types/domain";
 import { formatMinutes } from "@/lib/utils";
 
@@ -13,9 +14,7 @@ const categories = [
 ] as const;
 
 function getNearestRoute(item: AnalyzedLocation, category: (typeof categories)[number]) {
-  return item.routeMetrics
-    .filter((metric) => metric.destinationType === category)
-    .sort((a, b) => (a.walkingMinutes ?? Number.POSITIVE_INFINITY) - (b.walkingMinutes ?? Number.POSITIVE_INFINITY))[0];
+  return getNearestRouteByType(item.routeMetrics, category);
 }
 
 export function AmenitiesPanel({ item }: { item: AnalyzedLocation }) {

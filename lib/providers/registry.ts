@@ -1,4 +1,4 @@
-import { getAppMode, getProviderMode } from "@/lib/env";
+import { getAppMode, getProviderMode, isLocalOnlyMode } from "@/lib/env";
 import { GeocoderProvider, PoiProvider, RoutingProvider, SafetyProvider } from "@/lib/providers/interfaces";
 import {
   buildMockFallbackSources,
@@ -19,6 +19,13 @@ function chooseProvider<T>(mode: string, live: T, mock: T): T {
 }
 
 export function getGeocoderProvider(): GeocoderProvider {
+  if (isLocalOnlyMode()) {
+    const localBaseUrl = process.env.LOCAL_GEOCODER_BASE_URL?.trim();
+    if (localBaseUrl) return new LocalPeliasGeocoderProvider();
+    if (hasLocalAddressDataset()) return new LocalDatasetGeocoderProvider();
+    return new MockGeocoderProvider();
+  }
+
   const mode = getProviderMode("geocoder");
   const localBaseUrl = process.env.LOCAL_GEOCODER_BASE_URL?.trim();
   const hasLocalDataset = hasLocalAddressDataset();
@@ -44,6 +51,10 @@ export function getGeocoderProvider(): GeocoderProvider {
 }
 
 export function getPoiProvider(): PoiProvider {
+  if (isLocalOnlyMode()) {
+    return new MockPoiProvider();
+  }
+
   const live: PoiProvider = new GeoapifyPoiProvider();
   if (getProviderMode("poi") === "auto" && !process.env.GEOAPIFY_API_KEY) {
     return new MockPoiProvider();
@@ -52,6 +63,10 @@ export function getPoiProvider(): PoiProvider {
 }
 
 export function getRoutingProvider(): RoutingProvider {
+  if (isLocalOnlyMode()) {
+    return new MockRoutingProvider();
+  }
+
   const live: RoutingProvider = new GeoapifyRoutingProvider();
   if (getProviderMode("routing") === "auto" && !process.env.GEOAPIFY_API_KEY) {
     return new MockRoutingProvider();
@@ -60,6 +75,10 @@ export function getRoutingProvider(): RoutingProvider {
 }
 
 export function getSafetyProvider(): SafetyProvider {
+  if (isLocalOnlyMode()) {
+    return new LAPDSafetyProvider();
+  }
+
   const live: SafetyProvider = new LAPDSafetyProvider();
   return chooseProvider(getProviderMode("safety"), live, new MockSafetyProvider());
 }

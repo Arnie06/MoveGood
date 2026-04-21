@@ -18,6 +18,27 @@ export function getSavedPlaceRoutes(routes: RouteMetric[]) {
     });
 }
 
+export function getNearestRouteByType(
+  routes: RouteMetric[],
+  destinationType: RouteMetric["destinationType"]
+) {
+  return routes
+    .filter((route) => route.destinationType === destinationType)
+    .sort((a, b) => {
+      const walkDelta =
+        (a.walkingMinutes ?? Number.POSITIVE_INFINITY) -
+        (b.walkingMinutes ?? Number.POSITIVE_INFINITY);
+      if (walkDelta !== 0) return walkDelta;
+
+      const offPeakDelta =
+        (a.driveMinutesOffPeak ?? Number.POSITIVE_INFINITY) -
+        (b.driveMinutesOffPeak ?? Number.POSITIVE_INFINITY);
+      if (offPeakDelta !== 0) return offPeakDelta;
+
+      return a.destinationLabel.localeCompare(b.destinationLabel);
+    })[0];
+}
+
 export function getAverageSavedPlacePeak(routes: RouteMetric[]) {
   const peakTimes = getSavedPlaceRoutes(routes)
     .map((route) => route.driveMinutesPeak)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { readPersistedCrimeIncidents } from "@/lib/crime-data";
+import { isLocalOnlyMode } from "@/lib/env";
 import { MockSafetyProvider } from "@/lib/providers/mock";
 import { CrimeIncident } from "@/lib/types/domain";
 
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
     isWithinBounds(incident, { west, south, east, north })
   );
 
-  if (visibleIncidents.length === 0) {
+  if (visibleIncidents.length === 0 && !isLocalOnlyMode()) {
     const centerLat = (south + north) / 2;
     const centerLng = (west + east) / 2;
     const radiusMiles = Math.min(

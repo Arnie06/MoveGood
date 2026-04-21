@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { getAverageSavedPlacePeak, getMaxSavedPlacePeak, getSavedPlaceRoutes } from "@/lib/route-metrics";
+import {
+  getAverageSavedPlacePeak,
+  getMaxSavedPlacePeak,
+  getNearestRouteByType,
+  getSavedPlaceRoutes
+} from "@/lib/route-metrics";
 import { RouteMetric } from "@/lib/types/domain";
 
 const now = "2026-04-20T00:00:00.000Z";
@@ -75,5 +80,46 @@ describe("route-metrics helpers", () => {
 
     expect(getAverageSavedPlacePeak(routes)).toBeUndefined();
     expect(getMaxSavedPlacePeak(routes)).toBeUndefined();
+  });
+
+  it("finds the nearest route by walking time with deterministic tie-breakers", () => {
+    const routes: RouteMetric[] = [
+      {
+        id: "a",
+        propertyId: "p",
+        destinationType: "grocery",
+        destinationId: "a",
+        destinationLabel: "Zulu Market",
+        walkingMinutes: 8,
+        driveMinutesOffPeak: 4,
+        sourceName: "test",
+        updatedAt: now
+      },
+      {
+        id: "b",
+        propertyId: "p",
+        destinationType: "grocery",
+        destinationId: "b",
+        destinationLabel: "Alpha Market",
+        walkingMinutes: 8,
+        driveMinutesOffPeak: 3,
+        sourceName: "test",
+        updatedAt: now
+      },
+      {
+        id: "c",
+        propertyId: "p",
+        destinationType: "grocery",
+        destinationId: "c",
+        destinationLabel: "Bravo Market",
+        walkingMinutes: 6,
+        driveMinutesOffPeak: 6,
+        sourceName: "test",
+        updatedAt: now
+      }
+    ];
+
+    expect(getNearestRouteByType(routes, "grocery")?.id).toBe("c");
+    expect(getNearestRouteByType(routes, "park")).toBeUndefined();
   });
 });

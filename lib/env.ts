@@ -4,7 +4,16 @@ function normalize(value?: string | null) {
   return value?.trim().toLowerCase();
 }
 
+export function isLocalOnlyMode() {
+  const value = normalize(process.env.LOCAL_ONLY_MODE);
+  return value === "1" || value === "true" || value === "yes" || value === "on";
+}
+
 export function getAppMode(): DataMode {
+  if (isLocalOnlyMode()) {
+    return "demo";
+  }
+
   const explicit = normalize(process.env.APP_MODE);
   if (explicit === "live" || explicit === "hybrid" || explicit === "demo") {
     return explicit;

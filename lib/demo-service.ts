@@ -1,4 +1,5 @@
 import { defaultPreferences } from "@/lib/constants";
+import { isLocalOnlyMode } from "@/lib/env";
 import {
   readCachedAutocomplete,
   readCachedGeocode,
@@ -167,6 +168,10 @@ async function loadNearbyAmenities(lat: number, lng: number) {
     );
   }
 
+  if (isLocalOnlyMode()) {
+    return [];
+  }
+
   const nearbyAmenities = await poiProvider.getNearbyAmenities({
     lat,
     lng,
@@ -308,7 +313,7 @@ async function enrichPropertyContext(
   });
   let effectiveCrimeIncidents = crimeIncidents;
 
-  if (crimeIncidents.length === 0 && crimeMetrics.length === 0) {
+  if (!isLocalOnlyMode() && crimeIncidents.length === 0 && crimeMetrics.length === 0) {
     effectiveCrimeIncidents = await mockSafetyProvider.getCrimeIncidents({
       lat: effectiveProperty.lat,
       lng: effectiveProperty.lng,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { isLocalOnlyMode } from "@/lib/env";
 import { getLocalPoisInBounds } from "@/lib/local-pois";
 import { getLosAngelesAmenitiesInBounds, intersectsLosAngelesBounds } from "@/lib/los-angeles-pois";
 import { getPoiProvider } from "@/lib/providers/registry";
@@ -108,35 +109,37 @@ export async function GET(request: NextRequest) {
       missingCategories = getMissingCategories(categories, combinedAmenities);
     }
 
-    const poiProvider = getPoiProvider();
-    const fallbackPoiProvider = new MockPoiProvider();
-    const centerLat = (south + north) / 2;
-    const centerLng = (west + east) / 2;
-    const radiusMiles = Math.max(
-      haversineMiles(centerLat, centerLng, north, west),
-      haversineMiles(centerLat, centerLng, north, east),
-      haversineMiles(centerLat, centerLng, south, west),
-      haversineMiles(centerLat, centerLng, south, east)
-    );
+    if (!isLocalOnlyMode()) {
+      const poiProvider = getPoiProvider();
+      const fallbackPoiProvider = new MockPoiProvider();
+      const centerLat = (south + north) / 2;
+      const centerLng = (west + east) / 2;
+      const radiusMiles = Math.max(
+        haversineMiles(centerLat, centerLng, north, west),
+        haversineMiles(centerLat, centerLng, north, east),
+        haversineMiles(centerLat, centerLng, south, west),
+        haversineMiles(centerLat, centerLng, south, east)
+      );
 
-    const providerRequest = {
-      lat: centerLat,
-      lng: centerLng,
-      radiusMiles: Math.min(8, Math.max(0.75, radiusMiles)),
-      categories: missingCategories === undefined ? categories : missingCategories
-    };
+      const providerRequest = {
+        lat: centerLat,
+        lng: centerLng,
+        radiusMiles: Math.min(8, Math.max(0.75, radiusMiles)),
+        categories: missingCategories === undefined ? categories : missingCategories
+      };
 
-    if (providerRequest.categories === undefined || providerRequest.categories.length > 0) {
-      const amenities = await poiProvider.getNearbyAmenities(providerRequest);
-      combinedAmenities = dedupeAmenities([
-        ...combinedAmenities,
-        ...filterAmenitiesToBounds(amenities, bounds)
-      ]);
-    }
+      if (providerRequest.categories === undefined || providerRequest.categories.length > 0) {
+        const amenities = await poiProvider.getNearbyAmenities(providerRequest);
+        combinedAmenities = dedupeAmenities([
+          ...combinedAmenities,
+          ...filterAmenitiesToBounds(amenities, bounds)
+        ]);
+      }
 
-    if (combinedAmenities.length === 0) {
-      const fallbackAmenities = await fallbackPoiProvider.getNearbyAmenities(providerRequest);
-      combinedAmenities = filterAmenitiesToBounds(fallbackAmenities, bounds);
+      if (combinedAmenities.length === 0) {
+        const fallbackAmenities = await fallbackPoiProvider.getNearbyAmenities(providerRequest);
+        combinedAmenities = filterAmenitiesToBounds(fallbackAmenities, bounds);
+      }
     }
 
     return NextResponse.json({ amenities: combinedAmenities });

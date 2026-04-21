@@ -5,7 +5,11 @@ import { Fragment, useMemo } from "react";
 import { useLocationStore } from "@/components/providers/location-store-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { getAverageSavedPlacePeak, getSavedPlaceRoutes } from "@/lib/route-metrics";
+import {
+  getAverageSavedPlacePeak,
+  getNearestRouteByType,
+  getSavedPlaceRoutes
+} from "@/lib/route-metrics";
 import { formatMinutes } from "@/lib/utils";
 
 const rows = [
@@ -101,8 +105,9 @@ export function LocationCompareTable() {
                   {row.label}
                 </div>
                 {comparedLocations.map((location) => {
-                  const grocery = location.analysis.routeMetrics.find(
-                    (route) => route.destinationType === "grocery"
+                  const grocery = getNearestRouteByType(
+                    location.analysis.routeMetrics,
+                    "grocery"
                   );
                   const savedPlaceRoutes = getSavedPlaceRoutes(location.analysis.routeMetrics);
                   const parks = location.analysis.nearbyAmenities.filter(

@@ -211,6 +211,14 @@ LOCAL_GEOCODER_BASE_URL=http://localhost:4000
 ENABLE_REMOTE_CRIME_FETCH=false
 ```
 
+To force local-only behavior (no external POI/crime/geocoder/routing fallbacks), set:
+
+```bash
+LOCAL_ONLY_MODE=true
+```
+
+When enabled, the app uses local datasets and cached data where available, and falls back to conservative scoring defaults instead of synthetic remote-like data when local context is missing.
+
 Notes:
 
 - If only Geoapify keys are present, you will still get a real map, real geocoding, POIs, and routing while listings fall back to demo data.

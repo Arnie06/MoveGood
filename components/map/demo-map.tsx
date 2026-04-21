@@ -8,7 +8,11 @@ import maplibregl, { GeoJSONSource, LngLatBounds } from "maplibre-gl";
 
 import { getMapStyleUrl } from "@/lib/env";
 import { buildFallbackMapStyle } from "@/lib/map-style";
-import { getAverageSavedPlacePeak, getSavedPlaceRoutes } from "@/lib/route-metrics";
+import {
+  getAverageSavedPlacePeak,
+  getNearestRouteByType,
+  getSavedPlaceRoutes
+} from "@/lib/route-metrics";
 import { Card } from "@/components/ui/card";
 import {
   AmenityCategory,
@@ -364,6 +368,9 @@ export function DemoMap({
       ? undefined
       : activeItem;
   const summarySavedPlaceRoutes = summaryItem ? getSavedPlaceRoutes(summaryItem.routeMetrics) : [];
+  const summaryNearestGroceryRoute = summaryItem
+    ? getNearestRouteByType(summaryItem.routeMetrics, "grocery")
+    : undefined;
   const summaryAverageSavedPlacePeak = summaryItem
     ? getAverageSavedPlacePeak(summaryItem.routeMetrics)
     : undefined;
@@ -1152,11 +1159,7 @@ export function DemoMap({
                 <div>
                   <div className="text-gray-500">Grocery walk</div>
                   <div className="font-semibold text-ink">
-                    {formatMinutes(
-                      summaryItem.routeMetrics.find(
-                        (route) => route.destinationType === "grocery"
-                      )?.walkingMinutes
-                    )}
+                    {formatMinutes(summaryNearestGroceryRoute?.walkingMinutes)}
                   </div>
                 </div>
                 <div>
