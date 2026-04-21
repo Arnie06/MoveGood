@@ -65,8 +65,11 @@ vi.mock("@/lib/providers/mock", () => ({
 }));
 
 describe("analyzeLocation", () => {
+  const previousLocalOnly = process.env.LOCAL_ONLY_MODE;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.LOCAL_ONLY_MODE = previousLocalOnly;
   });
 
   it("builds a full analysis result for typed address inputs", async () => {
@@ -195,5 +198,35 @@ describe("analyzeLocation", () => {
 
     expect(result).not.toBeNull();
     expect(mockReverseGeocode).toHaveBeenCalledWith({ lat: 40.7, lng: -73.95 });
+  });
+
+  it("keeps POI and route calculations populated in local-only mode with estimated amenities", async () => {
+    process.env.LOCAL_ONLY_MODE = "true";
+    mockReverseGeocode.mockResolvedValue({
+      canonicalAddress: "Dropped Pin",
+      lat: 36.17,
+      lng: -115.14,
+      city: "Las Vegas",
+      state: "NV",
+      zipCode: "89101"
+    });
+    mockGetNearbyAmenities.mockResolvedValue([]);
+    mockGetCrimeIncidents.mockResolvedValue([]);
+    mockGetSafetyMetrics.mockResolvedValue([]);
+    mockGetRouteMetrics.mockRejectedValue(new Error("Routing unavailable"));
+
+    const { analyzeLocation } = await import("@/lib/demo-service");
+    const result = await analyzeLocation({
+      lat: 36.17,
+      lng: -115.14
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.nearbyAmenities.length).toBeGreaterThanOrEqual(6);
+    expect(result?.routeMetrics.length).toBeGreaterThanOrEqual(6);
+    expect(result?.routeMetrics.every((route) => route.walkingMinutes != null)).toBe(true);
+    expect(result?.score.dataCompleteness).not.toContain(
+      "Travel-time data is limited, so commute scoring is conservative"
+    );
   });
 });

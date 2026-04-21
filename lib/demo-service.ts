@@ -106,6 +106,54 @@ function buildBoundsFromRadius(lat: number, lng: number, radiusMiles: number) {
   };
 }
 
+function offsetCoordinate(
+  lat: number,
+  lng: number,
+  distanceMiles: number,
+  bearingDegrees: number
+) {
+  const bearing = (bearingDegrees * Math.PI) / 180;
+  const milesPerLatDegree = 69;
+  const milesPerLngDegree = Math.max(14, 69 * Math.cos((lat * Math.PI) / 180));
+
+  return {
+    lat: lat + (Math.cos(bearing) * distanceMiles) / milesPerLatDegree,
+    lng: lng + (Math.sin(bearing) * distanceMiles) / milesPerLngDegree
+  };
+}
+
+function buildEstimatedAmenities(lat: number, lng: number): AmenityPOI[] {
+  const blueprints: Array<{
+    category: AmenityPOI["category"];
+    label: string;
+    miles: number;
+    bearing: number;
+  }> = [
+    { category: "grocery", label: "Estimated Grocery", miles: 0.55, bearing: 15 },
+    { category: "gym", label: "Estimated Gym", miles: 0.85, bearing: 72 },
+    { category: "park", label: "Estimated Park", miles: 0.95, bearing: 132 },
+    { category: "restaurant", label: "Estimated Restaurant", miles: 0.7, bearing: 198 },
+    { category: "coffee", label: "Estimated Cafe", miles: 0.4, bearing: 246 },
+    { category: "bar", label: "Estimated Bar", miles: 0.9, bearing: 308 }
+  ];
+
+  return blueprints.map((entry, index) => {
+    const point = offsetCoordinate(lat, lng, entry.miles, entry.bearing);
+    return {
+      id: `estimated-${entry.category}-${index}`,
+      name: entry.label,
+      category: entry.category,
+      lat: point.lat,
+      lng: point.lng,
+      address: "Estimated from local-only mode",
+      metadata: {
+        estimated: true,
+        localOnly: true
+      }
+    } satisfies AmenityPOI;
+  });
+}
+
 function buildEstimatedRouteMetrics(input: {
   propertyId: string;
   propertyLat: number;
@@ -168,10 +216,6 @@ async function loadNearbyAmenities(lat: number, lng: number) {
     );
   }
 
-  if (isLocalOnlyMode()) {
-    return [];
-  }
-
   const nearbyAmenities = await poiProvider.getNearbyAmenities({
     lat,
     lng,
@@ -182,11 +226,20 @@ async function loadNearbyAmenities(lat: number, lng: number) {
     return nearbyAmenities;
   }
 
-  return poiProvider.getNearbyAmenities({
+  const widerAmenities = await poiProvider.getNearbyAmenities({
     lat,
     lng,
     radiusMiles: 4
   });
+  if (widerAmenities.length > 0) {
+    return widerAmenities;
+  }
+
+  if (isLocalOnlyMode()) {
+    return buildEstimatedAmenities(lat, lng);
+  }
+
+  return widerAmenities;
 }
 
 async function cachedGeocode(address: string) {
