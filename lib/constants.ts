@@ -1,11 +1,72 @@
-import { ScoreWeights, UserPreferences } from "@/lib/types/domain";
+import { AppSettings, ScoreWeights, UserPreferences } from "@/lib/types/domain";
 
 export const defaultWeights: ScoreWeights = {
-  safety: 40,
-  accessibility: 35,
+  safety: 30,
+  accessibility: 20,
+  walk: 20,
+  drive: 15,
   affordability: 0,
   homeFit: 0,
-  lifestyle: 25
+  lifestyle: 15
+};
+
+export const defaultAppSettings: AppSettings = {
+  scoring: {
+    confidenceThreshold: 55,
+    strictMode: false,
+    normalizationMode: "raw"
+  },
+  safety: {
+    crimeRadiusMiles: 1,
+    lookbackWindowDays: 365,
+    categoryEmphasis: {
+      violent: 1,
+      property: 1,
+      theft: 1
+    },
+    nightWeight: 1
+  },
+  travel: {
+    walkSpeedProfile: "average",
+    trafficProfile: "balanced",
+    maxDestinationsRouted: 12,
+    amenityWalkCaps: {
+      grocery: 20,
+      park: 20,
+      coffee: 20,
+      bar: 20
+    }
+  },
+  mustHaves: {
+    preset: "custom",
+    failFast: false,
+    requiredSavedPlaceIds: []
+  },
+  dataReliability: {
+    localOnlyMode: false,
+    providerToggles: {
+      geocoder: true,
+      routing: true,
+      poi: true,
+      safety: true
+    },
+    cacheFreshness: "prefer-cached",
+    showEstimatedData: true
+  },
+  mapBrowse: {
+    defaultSearchArea: "Los Angeles, CA",
+    defaultZoom: 11,
+    defaultPoiCategories: ["grocery", "gym", "park", "restaurant", "coffee", "bar"],
+    defaultCrimeOverlayOn: false,
+    defaultCrimeDateFilter: "2y",
+    autoRefreshOnViewportChange: true
+  },
+  ux: {
+    explainabilityVerbosity: "detailed",
+    distanceUnit: "mi",
+    minuteDisplay: "compact",
+    autoSaveComparisonSnapshots: true
+  }
 };
 
 export const defaultPreferences: UserPreferences = {
@@ -31,5 +92,6 @@ export const defaultPreferences: UserPreferences = {
       value: 55
     }
   ],
-  savedPlaces: []
+  savedPlaces: [],
+  settings: defaultAppSettings
 };

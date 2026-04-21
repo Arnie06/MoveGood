@@ -154,9 +154,70 @@ export interface AddressSuggestion extends GeocodedLocation {
 export interface ScoreWeights {
   safety: number;
   accessibility: number;
+  walk: number;
+  drive: number;
   affordability: number;
   homeFit: number;
   lifestyle: number;
+}
+
+export interface AppSettings {
+  scoring: {
+    confidenceThreshold: number;
+    strictMode: boolean;
+    normalizationMode: "raw" | "percentile";
+  };
+  safety: {
+    crimeRadiusMiles: 0.5 | 1 | 1.5 | 2;
+    lookbackWindowDays: 90 | 365 | 730;
+    categoryEmphasis: {
+      violent: number;
+      property: number;
+      theft: number;
+    };
+    nightWeight: number;
+  };
+  travel: {
+    walkSpeedProfile: "easy" | "average" | "fast";
+    trafficProfile: "off-peak" | "balanced" | "peak-heavy";
+    maxDestinationsRouted: number;
+    amenityWalkCaps: {
+      grocery: number;
+      park: number;
+      coffee: number;
+      bar: number;
+    };
+  };
+  mustHaves: {
+    preset: "starter" | "family" | "commuter" | "nightlife" | "custom";
+    failFast: boolean;
+    requiredSavedPlaceIds: string[];
+  };
+  dataReliability: {
+    localOnlyMode: boolean;
+    providerToggles: {
+      geocoder: boolean;
+      routing: boolean;
+      poi: boolean;
+      safety: boolean;
+    };
+    cacheFreshness: "prefer-cached" | "prefer-fresh";
+    showEstimatedData: boolean;
+  };
+  mapBrowse: {
+    defaultSearchArea: string;
+    defaultZoom: number;
+    defaultPoiCategories: AmenityCategory[];
+    defaultCrimeOverlayOn: boolean;
+    defaultCrimeDateFilter: "30d" | "90d" | "1y" | "2y" | "all";
+    autoRefreshOnViewportChange: boolean;
+  };
+  ux: {
+    explainabilityVerbosity: "simple" | "detailed";
+    distanceUnit: "mi" | "km";
+    minuteDisplay: "compact" | "verbose";
+    autoSaveComparisonSnapshots: boolean;
+  };
 }
 
 export interface HardRule {
@@ -178,6 +239,7 @@ export interface UserPreferences {
   scoringWeights: ScoreWeights;
   hardRules: HardRule[];
   savedPlaces: SavedPlace[];
+  settings?: AppSettings;
 }
 
 export interface RequirementResult {
@@ -191,6 +253,7 @@ export interface RequirementResult {
 export interface PropertyScore {
   propertyId: string;
   overallScore: number;
+  confidenceScore: number;
   safetyScore: number;
   accessibilityScore: number;
   lifestyleScore: number;

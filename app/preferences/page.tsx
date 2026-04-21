@@ -1,4 +1,5 @@
 import { SavedPlacesManager } from "@/components/preferences/saved-places-manager";
+import { SettingsManager } from "@/components/preferences/settings-manager";
 import { SectionHeading } from "@/components/ui/section-heading";
 
 export default function PreferencesPage() {
@@ -6,11 +7,12 @@ export default function PreferencesPage() {
     <div className="space-y-6 pb-12">
       <section className="section-shell p-6 sm:p-8">
         <SectionHeading
-          eyebrow="Saved Places"
-          title="Manage the places that define your day-to-day geography"
-          description="Saved places are stored locally and used for travel-time analysis, scoring, and side-by-side location comparison."
+          eyebrow="Preferences"
+          title="Tune scoring, safety, travel, data, map, and UX behavior"
+          description="These settings are stored locally and control how locations are evaluated and displayed. Ranking settings are intentionally excluded for now."
         />
       </section>
+      <SettingsManager />
       <SavedPlacesManager />
     </div>
   );
