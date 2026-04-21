@@ -5,6 +5,7 @@ import { LocationScore } from "@/lib/types/domain";
 export function ScoreCard({ score }: { score: LocationScore }) {
   const rows: Array<[string, number, string]> = [
     ["Overall Good Area Score", score.overallScore, score.explanations.overall],
+    ["Confidence", score.confidenceScore, "Confidence reflects how complete and grounded the underlying data is for this location."],
     ["Safety", score.safetyScore, score.explanations.safety],
     ["Accessibility", score.accessibilityScore, score.explanations.accessibility],
     ["Lifestyle", score.lifestyleScore, score.explanations.lifestyle],

@@ -131,10 +131,13 @@ describe("computePropertyScore", () => {
       preferences
     });
 
-    expect(score.overallScore).toBe(71);
+    expect(score.overallScore).toBe(68);
+    expect(score.confidenceScore).toBe(100);
     expect(score.safetyScore).toBe(82);
     expect(score.accessibilityScore).toBe(73);
     expect(score.lifestyleScore).toBe(52);
+    expect(score.walkScore).toBe(81);
+    expect(score.driveScore).toBe(34);
     expect(score.highlights).toEqual([
       "Strong grocery access on foot",
       "Parks feel easy to reach",
@@ -180,8 +183,11 @@ describe("computePropertyScore", () => {
       preferences
     });
 
-    expect(score.overallScore).toBe(25);
+    expect(score.overallScore).toBe(42);
+    expect(score.confidenceScore).toBe(28);
     expect(score.safetyScore).toBe(52);
+    expect(score.walkScore).toBe(48);
+    expect(score.driveScore).toBe(34);
     expect(score.tradeoffs).toContain("Safety context is below the default comfort threshold");
     expect(score.tradeoffs).toContain("Safety context is incomplete in this area");
     expect(score.failedMustHaves).toEqual(["Safety >= 70"]);

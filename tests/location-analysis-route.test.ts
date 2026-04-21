@@ -20,11 +20,13 @@ describe("GET /api/location-analysis", () => {
     const preferences = {
       id: "test-user",
       scoringWeights: {
-        safety: 40,
-        accessibility: 35,
+        safety: 30,
+        accessibility: 20,
+        walk: 20,
+        drive: 15,
         affordability: 0,
         homeFit: 0,
-        lifestyle: 25
+        lifestyle: 15
       },
       hardRules: [],
       savedPlaces: [
@@ -73,11 +75,13 @@ describe("GET /api/location-analysis", () => {
     mockGetServerPreferences.mockResolvedValue({
       id: "test-user",
       scoringWeights: {
-        safety: 40,
-        accessibility: 35,
+        safety: 30,
+        accessibility: 20,
+        walk: 20,
+        drive: 15,
         affordability: 0,
         homeFit: 0,
-        lifestyle: 25
+        lifestyle: 15
       },
       hardRules: [],
       savedPlaces: []

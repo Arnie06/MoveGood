@@ -137,18 +137,21 @@ export function computePropertyScore(input: {
     45 + beds * 15 + baths * 8 + Math.min(18, Math.round((sqft - 600) / 40))
   );
 
-  const confidencePenalty =
-    (input.crimeMetrics.length === 0 ? 6 : 0) +
-    (input.routeMetrics.length === 0 ? 8 : 0) +
-    Math.min(6, missingSavedPlaceRoutes * 2);
+  const confidenceScore = clampScore(
+    100 -
+      (input.crimeMetrics.length === 0 ? 28 : 0) -
+      (input.routeMetrics.length === 0 ? 36 : 0) -
+      Math.min(24, missingSavedPlaceRoutes * 8)
+  );
 
   const weighted =
     safetyScore * (scoreWeights.safety / 100) +
     accessibilityScore * (scoreWeights.accessibility / 100) +
+    walkScore * (scoreWeights.walk / 100) +
+    driveScore * (scoreWeights.drive / 100) +
     affordabilityScore * (scoreWeights.affordability / 100) +
     homeFitScore * (scoreWeights.homeFit / 100) +
-    lifestyleScore * (scoreWeights.lifestyle / 100) -
-    confidencePenalty;
+    lifestyleScore * (scoreWeights.lifestyle / 100);
 
   const explanations = {
     overall:
@@ -245,6 +248,7 @@ export function computePropertyScore(input: {
   return {
     propertyId: input.property.id,
     overallScore: clampScore(weighted),
+    confidenceScore,
     safetyScore,
     accessibilityScore,
     lifestyleScore,
