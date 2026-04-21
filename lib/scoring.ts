@@ -47,10 +47,13 @@ export function computePropertyScore(input: {
   const overallCrime =
     input.crimeMetrics.find((metric) => metric.metricType === "overall")?.normalizedScore ?? 52;
 
-  const groceryWalk = nearestRoute(input.routeMetrics, "grocery")?.walkingMinutes ?? 16;
-  const parkWalk = nearestRoute(input.routeMetrics, "park")?.walkingMinutes ?? 18;
+  const nearestGroceryRoute = nearestRoute(input.routeMetrics, "grocery");
+  const nearestParkRoute = nearestRoute(input.routeMetrics, "park");
+  const nearestCoffeeRoute = nearestRoute(input.routeMetrics, "coffee");
+  const groceryWalk = nearestGroceryRoute?.walkingMinutes ?? 16;
+  const parkWalk = nearestParkRoute?.walkingMinutes ?? 18;
   const maxSavedPlacePeak = getMaxSavedPlacePeak(input.routeMetrics);
-  const coffeeWalk = nearestRoute(input.routeMetrics, "coffee")?.walkingMinutes ?? 18;
+  const coffeeWalk = nearestCoffeeRoute?.walkingMinutes ?? 18;
   const includedSavedPlaces =
     preferences?.savedPlaces.filter((place) => place.includeInScoring) ?? [];
   const savedPlaceIds = new Set(includedSavedPlaces.map((place) => place.id));
@@ -61,7 +64,11 @@ export function computePropertyScore(input: {
   const savedPlacePeakTimes = savedPlaceRoutes
     .map((route) => route.driveMinutesPeak)
     .filter((value): value is number => value != null);
+  const savedPlaceOffPeakTimes = savedPlaceRoutes
+    .map((route) => route.driveMinutesOffPeak)
+    .filter((value): value is number => value != null);
   const avgSavedPlacePeak = average(savedPlacePeakTimes);
+  const avgSavedPlaceOffPeak = average(savedPlaceOffPeakTimes);
   const closeSavedPlaces = savedPlacePeakTimes.filter((value) => value <= 25).length;
   const missingSavedPlaceRoutes = Math.max(0, includedSavedPlaces.length - savedPlaceRoutes.length);
   const groceryWalkable = countWalkableRoutes(input.routeMetrics, "grocery", 20);
@@ -93,6 +100,30 @@ export function computePropertyScore(input: {
       Math.min(6, coffeeWalkable) * 2 -
       Math.min(6, barWalkable) * 1.5 +
       closeSavedPlaces
+  );
+  const averageWalkMinutes = average([groceryWalk, parkWalk, coffeeWalk]) ?? 18;
+  const walkCoverageBoost = Math.min(
+    12,
+    groceryWalkable * 2 + parkWalkable * 1.5 + coffeeWalkable * 1.5
+  );
+  const walkScore = clampScore(100 - averageWalkMinutes * 3 + walkCoverageBoost);
+  const fallbackAmenityPeakTimes = [
+    nearestGroceryRoute?.driveMinutesPeak,
+    nearestParkRoute?.driveMinutesPeak,
+    nearestCoffeeRoute?.driveMinutesPeak
+  ].filter((value): value is number => value != null);
+  const fallbackAmenityOffPeakTimes = [
+    nearestGroceryRoute?.driveMinutesOffPeak,
+    nearestParkRoute?.driveMinutesOffPeak,
+    nearestCoffeeRoute?.driveMinutesOffPeak
+  ].filter((value): value is number => value != null);
+  const averageDrivePeak =
+    avgSavedPlacePeak ?? average(fallbackAmenityPeakTimes) ?? 28;
+  const averageDriveOffPeak =
+    avgSavedPlaceOffPeak ?? average(fallbackAmenityOffPeakTimes) ?? 20;
+  const trafficPenalty = Math.max(0, averageDrivePeak - averageDriveOffPeak);
+  const driveScore = clampScore(
+    100 - averageDrivePeak * 2 + closeSavedPlaces * 4 - trafficPenalty * 1.2
   );
 
   const targetBudget = input.property.listingType === "sale" ? 750000 : 3200;
@@ -127,7 +158,9 @@ export function computePropertyScore(input: {
       includedSavedPlaces.length > 0
         ? `Accessibility rewards daily essentials and your included saved places. Grocery walk is ${groceryWalk} min and access across your personal places is folded in.`
         : `Accessibility rewards daily essentials first. Grocery walk is ${groceryWalk} min and nearby essentials are weighted heavily.`,
-    lifestyle: `Lifestyle rewards parks and coffee access while penalizing heavy bar density. Park walk is ${parkWalk} min and coffee walk is ${coffeeWalk} min.`
+    lifestyle: `Lifestyle rewards parks and coffee access while penalizing heavy bar density. Park walk is ${parkWalk} min and coffee walk is ${coffeeWalk} min.`,
+    walk: `Walk score blends your nearest grocery, park, and coffee walks. Current average walk is ${Math.round(averageWalkMinutes)} min.`,
+    drive: `Drive score emphasizes peak-time accessibility. Current average peak drive is ${Math.round(averageDrivePeak)} min with a ${Math.round(trafficPenalty)} min traffic penalty.`
   } as const;
 
   const highlights: string[] = [];
@@ -215,6 +248,8 @@ export function computePropertyScore(input: {
     safetyScore,
     accessibilityScore,
     lifestyleScore,
+    walkScore,
+    driveScore,
     affordabilityScore,
     homeFitScore,
     explanations,

@@ -19,9 +19,9 @@ export function ExplanationPanel({ item }: { item: AnalyzedLocation }) {
             Helped
           </div>
           <ul className="space-y-2 text-sm text-gray-600">
-            {item.score.highlights.map((highlight) => (
+            {item.score.highlights.length ? item.score.highlights.map((highlight) => (
               <li key={highlight}>{highlight}</li>
-            ))}
+            )) : <li>No standout positives surfaced for this location yet.</li>}
           </ul>
         </div>
         <div>

@@ -194,6 +194,8 @@ export interface PropertyScore {
   safetyScore: number;
   accessibilityScore: number;
   lifestyleScore: number;
+  walkScore: number;
+  driveScore: number;
   affordabilityScore: number;
   homeFitScore: number;
   explanations: {
@@ -201,6 +203,8 @@ export interface PropertyScore {
     safety: string;
     accessibility: string;
     lifestyle: string;
+    walk: string;
+    drive: string;
   };
   highlights: string[];
   tradeoffs: string[];

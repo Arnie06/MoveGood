@@ -7,7 +7,9 @@ export function ScoreCard({ score }: { score: LocationScore }) {
     ["Overall Good Area Score", score.overallScore, score.explanations.overall],
     ["Safety", score.safetyScore, score.explanations.safety],
     ["Accessibility", score.accessibilityScore, score.explanations.accessibility],
-    ["Lifestyle", score.lifestyleScore, score.explanations.lifestyle]
+    ["Lifestyle", score.lifestyleScore, score.explanations.lifestyle],
+    ["Walk", score.walkScore, score.explanations.walk],
+    ["Drive", score.driveScore, score.explanations.drive]
   ];
 
   return (

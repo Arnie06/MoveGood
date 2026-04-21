@@ -211,9 +211,38 @@ async function loadNearbyAmenities(lat: number, lng: number) {
       categories: [...categories]
     });
 
-    return widerAmenities.filter(
+    const widerRadiusFiltered = widerAmenities.filter(
       (amenity) => haversineMiles(lat, lng, amenity.lat, amenity.lng) <= 4.25
     );
+    if (widerRadiusFiltered.length > 0) {
+      return widerRadiusFiltered;
+    }
+
+    if (isLocalOnlyMode()) {
+      return buildEstimatedAmenities(lat, lng);
+    }
+
+    const providerNearbyAmenities = await poiProvider.getNearbyAmenities({
+      lat,
+      lng,
+      radiusMiles: 2,
+      categories: [...categories]
+    });
+    if (providerNearbyAmenities.length > 0) {
+      return providerNearbyAmenities;
+    }
+
+    const providerWiderAmenities = await poiProvider.getNearbyAmenities({
+      lat,
+      lng,
+      radiusMiles: 4,
+      categories: [...categories]
+    });
+    if (providerWiderAmenities.length > 0) {
+      return providerWiderAmenities;
+    }
+
+    return buildEstimatedAmenities(lat, lng);
   }
 
   const nearbyAmenities = await poiProvider.getNearbyAmenities({
