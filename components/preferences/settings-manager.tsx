@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { ReactNode, useMemo } from "react";
 
 import { usePreferences } from "@/components/providers/preferences-provider";
-import { Card } from "@/components/ui/card";
+import { HoverTooltip } from "@/components/ui/hover-tooltip";
 import { Input } from "@/components/ui/input";
 import { defaultAppSettings } from "@/lib/constants";
 import { AmenityCategory, ScoreWeights } from "@/lib/types/domain";
@@ -13,6 +13,51 @@ const poiCategories: AmenityCategory[] = ["grocery", "gym", "park", "restaurant"
 function toNumber(value: string, fallback: number) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function HelpTip({ text }: { text: string }) {
+  return (
+    <HoverTooltip content={text}>
+      <span className="inline-flex h-5 w-5 cursor-help items-center justify-center rounded-full border border-black/10 text-[11px] font-semibold text-gray-500">
+        ?
+      </span>
+    </HoverTooltip>
+  );
+}
+
+function SettingLabel({ label, tip, className }: { label: string; tip: string; className?: string }) {
+  return (
+    <div className={`flex items-center gap-2 ${className ?? ""}`}>
+      <span className="text-sm text-gray-600">{label}</span>
+      <HelpTip text={tip} />
+    </div>
+  );
+}
+
+function SettingsAccordionSection({
+  title,
+  description,
+  children
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <details className="group rounded-3xl border border-black/10 bg-white p-6">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+        <div>
+          <h3 className="font-display text-2xl text-ink">{title}</h3>
+          {description ? <p className="mt-1 text-sm text-gray-600">{description}</p> : null}
+        </div>
+        <div className="text-xl font-semibold text-gray-500">
+          <span className="group-open:hidden">▸</span>
+          <span className="hidden group-open:inline">▾</span>
+        </div>
+      </summary>
+      <div className="mt-4">{children}</div>
+    </details>
+  );
 }
 
 export function SettingsManager() {
@@ -53,13 +98,10 @@ export function SettingsManager() {
 
   return (
     <div className="space-y-6">
-      <Card className="p-6">
-        <div className="mb-4">
-          <h3 className="font-display text-2xl text-ink">Scoring</h3>
-          <p className="mt-1 text-sm text-gray-600">
-            Tune score model behavior. Weight total should usually stay near 100 (currently {weightTotal}).
-          </p>
-        </div>
+      <SettingsAccordionSection
+        title="Scoring"
+        description={`Tune score model behavior. Weight total should usually stay near 100 (currently ${weightTotal}).`}
+      >
         <div className="grid gap-4 md:grid-cols-3">
           {(
             [
@@ -73,7 +115,7 @@ export function SettingsManager() {
             ] as const
           ).map(([key, label]) => (
             <label key={key} className="space-y-1">
-              <span className="text-sm text-gray-600">{label} Weight</span>
+              <SettingLabel label={`${label} Weight`} tip="Higher values increase this factor's influence on overall score." />
               <Input
                 type="number"
                 min={0}
@@ -84,7 +126,7 @@ export function SettingsManager() {
             </label>
           ))}
           <label className="space-y-1">
-            <span className="text-sm text-gray-600">Confidence threshold</span>
+            <SettingLabel label="Confidence threshold" tip="Locations below this confidence are lower-trust due to sparse data." />
             <Input
               type="number"
               min={0}
@@ -101,7 +143,7 @@ export function SettingsManager() {
             />
           </label>
           <label className="space-y-1">
-            <span className="text-sm text-gray-600">Normalization mode</span>
+            <SettingLabel label="Normalization mode" tip="Raw keeps direct model output. Percentile compares against your analyzed set." />
             <select
               className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
               value={settings.scoring.normalizationMode}
@@ -131,18 +173,16 @@ export function SettingsManager() {
                 })
               }
             />
-            Strict mode (exclude weak-data results)
+            Strict mode
+            <HelpTip text="Filters out weak-data results from score-centric experiences." />
           </label>
         </div>
-      </Card>
+      </SettingsAccordionSection>
 
-      <Card className="p-6">
-        <div className="mb-4">
-          <h3 className="font-display text-2xl text-ink">Safety</h3>
-        </div>
+      <SettingsAccordionSection title="Safety">
         <div className="grid gap-4 md:grid-cols-3">
           <label className="space-y-1">
-            <span className="text-sm text-gray-600">Crime radius (mi)</span>
+            <SettingLabel label="Crime radius (mi)" tip="Distance used to gather incidents around a location." />
             <select
               className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
               value={String(settings.safety.crimeRadiusMiles)}
@@ -162,7 +202,7 @@ export function SettingsManager() {
             </select>
           </label>
           <label className="space-y-1">
-            <span className="text-sm text-gray-600">Lookback window</span>
+            <SettingLabel label="Lookback window" tip="How far back incidents are considered in safety context." />
             <select
               className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
               value={String(settings.safety.lookbackWindowDays)}
@@ -181,7 +221,7 @@ export function SettingsManager() {
             </select>
           </label>
           <label className="space-y-1">
-            <span className="text-sm text-gray-600">Night weight</span>
+            <SettingLabel label="Night weight" tip="Relative emphasis for night-time comfort/safety." />
             <Input
               type="number"
               min={0}
@@ -199,7 +239,7 @@ export function SettingsManager() {
           </label>
           {(["violent", "property", "theft"] as const).map((key) => (
             <label key={key} className="space-y-1">
-              <span className="text-sm capitalize text-gray-600">{key} emphasis</span>
+              <SettingLabel label={`${key[0].toUpperCase()}${key.slice(1)} emphasis`} tip="Higher = this category impacts safety more." />
               <Input
                 type="number"
                 min={0}
@@ -220,112 +260,44 @@ export function SettingsManager() {
             </label>
           ))}
         </div>
-      </Card>
+      </SettingsAccordionSection>
 
-      <Card className="p-6">
-        <div className="mb-4">
-          <h3 className="font-display text-2xl text-ink">Travel & Proximity</h3>
-        </div>
+      <SettingsAccordionSection title="Travel & Proximity">
         <div className="grid gap-4 md:grid-cols-3">
           <label className="space-y-1">
-            <span className="text-sm text-gray-600">Walk speed profile</span>
-            <select
-              className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
-              value={settings.travel.walkSpeedProfile}
-              onChange={(event) =>
-                updateSettings({
-                  travel: {
-                    ...settings.travel,
-                    walkSpeedProfile: event.target.value as "easy" | "average" | "fast"
-                  }
-                })
-              }
-            >
+            <SettingLabel label="Walk speed profile" tip="Changes how walking accessibility is interpreted." />
+            <select className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm" value={settings.travel.walkSpeedProfile} onChange={(event) => updateSettings({ travel: { ...settings.travel, walkSpeedProfile: event.target.value as "easy" | "average" | "fast" } })}>
               <option value="easy">Easy</option>
               <option value="average">Average</option>
               <option value="fast">Fast</option>
             </select>
           </label>
           <label className="space-y-1">
-            <span className="text-sm text-gray-600">Traffic profile</span>
-            <select
-              className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
-              value={settings.travel.trafficProfile}
-              onChange={(event) =>
-                updateSettings({
-                  travel: {
-                    ...settings.travel,
-                    trafficProfile: event.target.value as "off-peak" | "balanced" | "peak-heavy"
-                  }
-                })
-              }
-            >
+            <SettingLabel label="Traffic profile" tip="Controls peak/off-peak drive-time sensitivity." />
+            <select className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm" value={settings.travel.trafficProfile} onChange={(event) => updateSettings({ travel: { ...settings.travel, trafficProfile: event.target.value as "off-peak" | "balanced" | "peak-heavy" } })}>
               <option value="off-peak">Off-peak</option>
               <option value="balanced">Balanced</option>
               <option value="peak-heavy">Peak-heavy</option>
             </select>
           </label>
           <label className="space-y-1">
-            <span className="text-sm text-gray-600">Max destinations routed</span>
-            <Input
-              type="number"
-              min={1}
-              max={50}
-              value={settings.travel.maxDestinationsRouted}
-              onChange={(event) =>
-                updateSettings({
-                  travel: {
-                    ...settings.travel,
-                    maxDestinationsRouted: toNumber(event.target.value, 12)
-                  }
-                })
-              }
-            />
+            <SettingLabel label="Max destinations routed" tip="Upper bound for route targets to balance speed vs detail." />
+            <Input type="number" min={1} max={50} value={settings.travel.maxDestinationsRouted} onChange={(event) => updateSettings({ travel: { ...settings.travel, maxDestinationsRouted: toNumber(event.target.value, 12) } })} />
           </label>
           {(["grocery", "park", "coffee", "bar"] as const).map((key) => (
             <label key={key} className="space-y-1">
-              <span className="text-sm capitalize text-gray-600">{key} max walk (min)</span>
-              <Input
-                type="number"
-                min={1}
-                max={60}
-                value={settings.travel.amenityWalkCaps[key]}
-                onChange={(event) =>
-                  updateSettings({
-                    travel: {
-                      ...settings.travel,
-                      amenityWalkCaps: {
-                        ...settings.travel.amenityWalkCaps,
-                        [key]: toNumber(event.target.value, 20)
-                      }
-                    }
-                  })
-                }
-              />
+              <SettingLabel label={`${key[0].toUpperCase()}${key.slice(1)} max walk (min)`} tip="Comfort target for this amenity type." />
+              <Input type="number" min={1} max={60} value={settings.travel.amenityWalkCaps[key]} onChange={(event) => updateSettings({ travel: { ...settings.travel, amenityWalkCaps: { ...settings.travel.amenityWalkCaps, [key]: toNumber(event.target.value, 20) } } })} />
             </label>
           ))}
         </div>
-      </Card>
+      </SettingsAccordionSection>
 
-      <Card className="p-6">
-        <div className="mb-4">
-          <h3 className="font-display text-2xl text-ink">Must-Haves</h3>
-        </div>
+      <SettingsAccordionSection title="Must-Haves">
         <div className="grid gap-4 md:grid-cols-3">
           <label className="space-y-1">
-            <span className="text-sm text-gray-600">Preset</span>
-            <select
-              className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
-              value={settings.mustHaves.preset}
-              onChange={(event) =>
-                updateSettings({
-                  mustHaves: {
-                    ...settings.mustHaves,
-                    preset: event.target.value as "starter" | "family" | "commuter" | "nightlife" | "custom"
-                  }
-                })
-              }
-            >
+            <SettingLabel label="Preset" tip="Loads a themed must-have starter config." />
+            <select className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm" value={settings.mustHaves.preset} onChange={(event) => updateSettings({ mustHaves: { ...settings.mustHaves, preset: event.target.value as "starter" | "family" | "commuter" | "nightlife" | "custom" } })}>
               <option value="custom">Custom</option>
               <option value="starter">Starter</option>
               <option value="family">Family</option>
@@ -334,176 +306,73 @@ export function SettingsManager() {
             </select>
           </label>
           <label className="mt-7 flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={settings.mustHaves.failFast}
-              onChange={(event) =>
-                updateSettings({
-                  mustHaves: {
-                    ...settings.mustHaves,
-                    failFast: event.target.checked
-                  }
-                })
-              }
-            />
-            Fail-fast on hard-rule misses
+            <input type="checkbox" checked={settings.mustHaves.failFast} onChange={(event) => updateSettings({ mustHaves: { ...settings.mustHaves, failFast: event.target.checked } })} />
+            Fail-fast
+            <HelpTip text="Flags a location quickly when any must-have fails." />
           </label>
         </div>
         <div className="mt-4">
-          <div className="mb-2 text-sm text-gray-600">Required saved places</div>
+          <SettingLabel label="Required saved places" tip="Selected personal places must be represented in commute context." className="mb-2" />
           <div className="grid gap-2 md:grid-cols-2">
             {preferences.savedPlaces.length === 0 ? (
               <div className="text-sm text-gray-500">Add saved places below to mark required ones.</div>
             ) : preferences.savedPlaces.map((place) => (
               <label key={place.id} className="flex items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={settings.mustHaves.requiredSavedPlaceIds.includes(place.id)}
-                  onChange={(event) => {
-                    const nextIds = event.target.checked
-                      ? [...settings.mustHaves.requiredSavedPlaceIds, place.id]
-                      : settings.mustHaves.requiredSavedPlaceIds.filter((id) => id !== place.id);
-                    updateSettings({
-                      mustHaves: {
-                        ...settings.mustHaves,
-                        requiredSavedPlaceIds: Array.from(new Set(nextIds))
-                      }
-                    });
-                  }}
-                />
+                <input type="checkbox" checked={settings.mustHaves.requiredSavedPlaceIds.includes(place.id)} onChange={(event) => {
+                  const nextIds = event.target.checked
+                    ? [...settings.mustHaves.requiredSavedPlaceIds, place.id]
+                    : settings.mustHaves.requiredSavedPlaceIds.filter((id) => id !== place.id);
+                  updateSettings({ mustHaves: { ...settings.mustHaves, requiredSavedPlaceIds: Array.from(new Set(nextIds)) } });
+                }} />
                 {place.label}
               </label>
             ))}
           </div>
         </div>
-      </Card>
+      </SettingsAccordionSection>
 
-      <Card className="p-6">
-        <div className="mb-4">
-          <h3 className="font-display text-2xl text-ink">Data & Reliability</h3>
-        </div>
+      <SettingsAccordionSection title="Data & Reliability">
         <div className="grid gap-3 md:grid-cols-2">
           <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={settings.dataReliability.localOnlyMode}
-              onChange={(event) =>
-                updateSettings({
-                  dataReliability: {
-                    ...settings.dataReliability,
-                    localOnlyMode: event.target.checked
-                  }
-                })
-              }
-            />
+            <input type="checkbox" checked={settings.dataReliability.localOnlyMode} onChange={(event) => updateSettings({ dataReliability: { ...settings.dataReliability, localOnlyMode: event.target.checked } })} />
             Local-only mode preference
+            <HelpTip text="Prioritizes local datasets/caches and avoids external reliance where possible." />
           </label>
           <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={settings.dataReliability.showEstimatedData}
-              onChange={(event) =>
-                updateSettings({
-                  dataReliability: {
-                    ...settings.dataReliability,
-                    showEstimatedData: event.target.checked
-                  }
-                })
-              }
-            />
+            <input type="checkbox" checked={settings.dataReliability.showEstimatedData} onChange={(event) => updateSettings({ dataReliability: { ...settings.dataReliability, showEstimatedData: event.target.checked } })} />
             Show estimated data notes
+            <HelpTip text="Shows when values are inferred rather than directly sourced." />
           </label>
           {(["geocoder", "routing", "poi", "safety"] as const).map((provider) => (
             <label key={provider} className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={settings.dataReliability.providerToggles[provider]}
-                onChange={(event) =>
-                  updateSettings({
-                    dataReliability: {
-                      ...settings.dataReliability,
-                      providerToggles: {
-                        ...settings.dataReliability.providerToggles,
-                        [provider]: event.target.checked
-                      }
-                    }
-                  })
-                }
-              />
+              <input type="checkbox" checked={settings.dataReliability.providerToggles[provider]} onChange={(event) => updateSettings({ dataReliability: { ...settings.dataReliability, providerToggles: { ...settings.dataReliability.providerToggles, [provider]: event.target.checked } } })} />
               Enable {provider}
+              <HelpTip text="Turns this provider category on/off for data enrichment." />
             </label>
           ))}
           <label className="space-y-1">
-            <span className="text-sm text-gray-600">Cache freshness</span>
-            <select
-              className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
-              value={settings.dataReliability.cacheFreshness}
-              onChange={(event) =>
-                updateSettings({
-                  dataReliability: {
-                    ...settings.dataReliability,
-                    cacheFreshness: event.target.value as "prefer-cached" | "prefer-fresh"
-                  }
-                })
-              }
-            >
+            <SettingLabel label="Cache freshness" tip="Prefer cached for speed, or fresh for newest data." />
+            <select className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm" value={settings.dataReliability.cacheFreshness} onChange={(event) => updateSettings({ dataReliability: { ...settings.dataReliability, cacheFreshness: event.target.value as "prefer-cached" | "prefer-fresh" } })}>
               <option value="prefer-cached">Prefer cached</option>
               <option value="prefer-fresh">Prefer fresh</option>
             </select>
           </label>
         </div>
-      </Card>
+      </SettingsAccordionSection>
 
-      <Card className="p-6">
-        <div className="mb-4">
-          <h3 className="font-display text-2xl text-ink">Map & Browse</h3>
-        </div>
+      <SettingsAccordionSection title="Map & Browse">
         <div className="grid gap-4 md:grid-cols-3">
           <label className="space-y-1 md:col-span-2">
-            <span className="text-sm text-gray-600">Default search area</span>
-            <Input
-              value={settings.mapBrowse.defaultSearchArea}
-              onChange={(event) =>
-                updateSettings({
-                  mapBrowse: {
-                    ...settings.mapBrowse,
-                    defaultSearchArea: event.target.value
-                  }
-                })
-              }
-            />
+            <SettingLabel label="Default search area" tip="Initial area used for browse/search context." />
+            <Input value={settings.mapBrowse.defaultSearchArea} onChange={(event) => updateSettings({ mapBrowse: { ...settings.mapBrowse, defaultSearchArea: event.target.value } })} />
           </label>
           <label className="space-y-1">
-            <span className="text-sm text-gray-600">Default zoom</span>
-            <Input
-              type="number"
-              min={4}
-              max={18}
-              value={settings.mapBrowse.defaultZoom}
-              onChange={(event) =>
-                updateSettings({
-                  mapBrowse: {
-                    ...settings.mapBrowse,
-                    defaultZoom: toNumber(event.target.value, 11)
-                  }
-                })
-              }
-            />
+            <SettingLabel label="Default zoom" tip="Initial map zoom level when opening map views." />
+            <Input type="number" min={4} max={18} value={settings.mapBrowse.defaultZoom} onChange={(event) => updateSettings({ mapBrowse: { ...settings.mapBrowse, defaultZoom: toNumber(event.target.value, 11) } })} />
           </label>
           <label className="space-y-1">
-            <span className="text-sm text-gray-600">Crime date default</span>
-            <select
-              className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
-              value={settings.mapBrowse.defaultCrimeDateFilter}
-              onChange={(event) =>
-                updateSettings({
-                  mapBrowse: {
-                    ...settings.mapBrowse,
-                    defaultCrimeDateFilter: event.target.value as "30d" | "90d" | "1y" | "2y" | "all"
-                  }
-                })
-              }
-            >
+            <SettingLabel label="Crime date default" tip="Default incident time filter for crime overlays." />
+            <select className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm" value={settings.mapBrowse.defaultCrimeDateFilter} onChange={(event) => updateSettings({ mapBrowse: { ...settings.mapBrowse, defaultCrimeDateFilter: event.target.value as "30d" | "90d" | "1y" | "2y" | "all" } })}>
               <option value="30d">30D</option>
               <option value="90d">90D</option>
               <option value="1y">1Y</option>
@@ -512,139 +381,64 @@ export function SettingsManager() {
             </select>
           </label>
           <label className="mt-7 flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={settings.mapBrowse.defaultCrimeOverlayOn}
-              onChange={(event) =>
-                updateSettings({
-                  mapBrowse: {
-                    ...settings.mapBrowse,
-                    defaultCrimeOverlayOn: event.target.checked
-                  }
-                })
-              }
-            />
+            <input type="checkbox" checked={settings.mapBrowse.defaultCrimeOverlayOn} onChange={(event) => updateSettings({ mapBrowse: { ...settings.mapBrowse, defaultCrimeOverlayOn: event.target.checked } })} />
             Crime overlay on by default
+            <HelpTip text="Automatically enables crime layer when map views load." />
           </label>
           <label className="mt-7 flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={settings.mapBrowse.autoRefreshOnViewportChange}
-              onChange={(event) =>
-                updateSettings({
-                  mapBrowse: {
-                    ...settings.mapBrowse,
-                    autoRefreshOnViewportChange: event.target.checked
-                  }
-                })
-              }
-            />
+            <input type="checkbox" checked={settings.mapBrowse.autoRefreshOnViewportChange} onChange={(event) => updateSettings({ mapBrowse: { ...settings.mapBrowse, autoRefreshOnViewportChange: event.target.checked } })} />
             Auto-refresh on pan/zoom
+            <HelpTip text="Refreshes viewport POIs/crime after map movement." />
           </label>
         </div>
         <div className="mt-4">
-          <div className="mb-2 text-sm text-gray-600">Default POI categories</div>
+          <SettingLabel label="Default POI categories" tip="POI overlays enabled by default in browse views." className="mb-2" />
           <div className="grid gap-2 md:grid-cols-3">
             {poiCategories.map((category) => (
               <label key={category} className="flex items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={settings.mapBrowse.defaultPoiCategories.includes(category)}
-                  onChange={(event) => {
-                    const next = event.target.checked
-                      ? [...settings.mapBrowse.defaultPoiCategories, category]
-                      : settings.mapBrowse.defaultPoiCategories.filter((item) => item !== category);
-                    updateSettings({
-                      mapBrowse: {
-                        ...settings.mapBrowse,
-                        defaultPoiCategories: Array.from(new Set(next))
-                      }
-                    });
-                  }}
-                />
+                <input type="checkbox" checked={settings.mapBrowse.defaultPoiCategories.includes(category)} onChange={(event) => {
+                  const next = event.target.checked
+                    ? [...settings.mapBrowse.defaultPoiCategories, category]
+                    : settings.mapBrowse.defaultPoiCategories.filter((item) => item !== category);
+                  updateSettings({ mapBrowse: { ...settings.mapBrowse, defaultPoiCategories: Array.from(new Set(next)) } });
+                }} />
                 <span className="capitalize">{category}</span>
               </label>
             ))}
           </div>
         </div>
-      </Card>
+      </SettingsAccordionSection>
 
-      <Card className="p-6">
-        <div className="mb-4">
-          <h3 className="font-display text-2xl text-ink">UX</h3>
-        </div>
+      <SettingsAccordionSection title="UX">
         <div className="grid gap-4 md:grid-cols-3">
           <label className="space-y-1">
-            <span className="text-sm text-gray-600">Explainability verbosity</span>
-            <select
-              className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
-              value={settings.ux.explainabilityVerbosity}
-              onChange={(event) =>
-                updateSettings({
-                  ux: {
-                    ...settings.ux,
-                    explainabilityVerbosity: event.target.value as "simple" | "detailed"
-                  }
-                })
-              }
-            >
+            <SettingLabel label="Explainability verbosity" tip="Simple shortens rationale text; detailed shows more context." />
+            <select className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm" value={settings.ux.explainabilityVerbosity} onChange={(event) => updateSettings({ ux: { ...settings.ux, explainabilityVerbosity: event.target.value as "simple" | "detailed" } })}>
               <option value="simple">Simple</option>
               <option value="detailed">Detailed</option>
             </select>
           </label>
           <label className="space-y-1">
-            <span className="text-sm text-gray-600">Distance unit</span>
-            <select
-              className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
-              value={settings.ux.distanceUnit}
-              onChange={(event) =>
-                updateSettings({
-                  ux: {
-                    ...settings.ux,
-                    distanceUnit: event.target.value as "mi" | "km"
-                  }
-                })
-              }
-            >
+            <SettingLabel label="Distance unit" tip="Controls distance formatting in travel and map displays." />
+            <select className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm" value={settings.ux.distanceUnit} onChange={(event) => updateSettings({ ux: { ...settings.ux, distanceUnit: event.target.value as "mi" | "km" } })}>
               <option value="mi">Miles</option>
               <option value="km">Kilometers</option>
             </select>
           </label>
           <label className="space-y-1">
-            <span className="text-sm text-gray-600">Minute display</span>
-            <select
-              className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
-              value={settings.ux.minuteDisplay}
-              onChange={(event) =>
-                updateSettings({
-                  ux: {
-                    ...settings.ux,
-                    minuteDisplay: event.target.value as "compact" | "verbose"
-                  }
-                })
-              }
-            >
+            <SettingLabel label="Minute display" tip="Compact uses short minute labels; verbose is more descriptive." />
+            <select className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm" value={settings.ux.minuteDisplay} onChange={(event) => updateSettings({ ux: { ...settings.ux, minuteDisplay: event.target.value as "compact" | "verbose" } })}>
               <option value="compact">Compact</option>
               <option value="verbose">Verbose</option>
             </select>
           </label>
           <label className="mt-3 flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={settings.ux.autoSaveComparisonSnapshots}
-              onChange={(event) =>
-                updateSettings({
-                  ux: {
-                    ...settings.ux,
-                    autoSaveComparisonSnapshots: event.target.checked
-                  }
-                })
-              }
-            />
+            <input type="checkbox" checked={settings.ux.autoSaveComparisonSnapshots} onChange={(event) => updateSettings({ ux: { ...settings.ux, autoSaveComparisonSnapshots: event.target.checked } })} />
             Auto-save comparison snapshots
+            <HelpTip text="Keeps automatic snapshots of compare states for later review." />
           </label>
         </div>
-      </Card>
+      </SettingsAccordionSection>
     </div>
   );
 }

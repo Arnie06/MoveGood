@@ -10,17 +10,44 @@ import {
   getNearestRouteByType,
   getSavedPlaceRoutes
 } from "@/lib/route-metrics";
+import { AmenityCategory } from "@/lib/types/domain";
 import { formatMinutes } from "@/lib/utils";
 
-const rows = [
-  { key: "overall", label: "Overall score" },
-  { key: "safety", label: "Safety" },
-  { key: "accessibility", label: "Accessibility" },
-  { key: "lifestyle", label: "Lifestyle" },
-  { key: "grocery", label: "Nearest grocery walk" },
-  { key: "savedPlacesAverage", label: "Average saved place peak drive" },
-  { key: "parks", label: "Nearby parks" }
-] as const;
+const poiWalkCategories: AmenityCategory[] = [
+  "grocery",
+  "gym",
+  "park",
+  "restaurant",
+  "coffee",
+  "bar"
+];
+
+function toTitle(value: string) {
+  return `${value[0].toUpperCase()}${value.slice(1)}`;
+}
+
+const staticRows = [
+  { key: "overall", label: "Overall score", type: "score" as const },
+  { key: "confidence", label: "Confidence", type: "score" as const },
+  { key: "safety", label: "Safety", type: "score" as const },
+  { key: "accessibility", label: "Accessibility", type: "score" as const },
+  { key: "lifestyle", label: "Lifestyle", type: "score" as const },
+  { key: "walk", label: "Walk", type: "score" as const },
+  { key: "drive", label: "Drive", type: "score" as const },
+  { key: "affordability", label: "Affordability", type: "score" as const },
+  { key: "homeFit", label: "Home fit", type: "score" as const },
+  { key: "savedPlacesAverage", label: "Average saved place peak drive", type: "travel" as const },
+  { key: "parksCount", label: "Nearby parks", type: "travel" as const }
+];
+
+const poiWalkRows = poiWalkCategories.map((category) => ({
+  key: `poi-${category}-walk`,
+  label: `Nearest ${toTitle(category)} walk`,
+  type: "poiWalk" as const,
+  category
+}));
+
+type SavedPlaceTime = "walk" | "offPeak" | "peak";
 
 export function LocationCompareTable() {
   const { savedLocations, compareIds, setCompareIncluded, removeLocation } = useLocationStore();
@@ -30,21 +57,37 @@ export function LocationCompareTable() {
     [compareIds, savedLocations]
   );
   const savedPlaceRows = useMemo(() => {
-    const uniqueRows = new Map<string, { key: string; label: string; destinationId: string }>();
+    const uniqueRows = new Map<string, { destinationId: string; destinationLabel: string }>();
 
     comparedLocations.forEach((location) => {
       getSavedPlaceRoutes(location.analysis.routeMetrics).forEach((route) => {
         if (!uniqueRows.has(route.destinationId)) {
           uniqueRows.set(route.destinationId, {
-            key: `saved-place-${route.destinationId}`,
-            label: `${route.destinationLabel} peak drive`,
-            destinationId: route.destinationId
+            destinationId: route.destinationId,
+            destinationLabel: route.destinationLabel
           });
         }
       });
     });
 
-    return Array.from(uniqueRows.values()).sort((a, b) => a.label.localeCompare(b.label));
+    const sortedPlaces = Array.from(uniqueRows.values()).sort((a, b) =>
+      a.destinationLabel.localeCompare(b.destinationLabel)
+    );
+
+    return sortedPlaces.flatMap((place) =>
+      (["walk", "offPeak", "peak"] as SavedPlaceTime[]).map((timeType) => ({
+        key: `saved-place-${place.destinationId}-${timeType}`,
+        label:
+          timeType === "walk"
+            ? `${place.destinationLabel} walk`
+            : timeType === "offPeak"
+              ? `${place.destinationLabel} drive off-peak`
+              : `${place.destinationLabel} drive peak`,
+        type: "savedPlaceTime" as const,
+        destinationId: place.destinationId,
+        timeType
+      }))
+    );
   }, [comparedLocations]);
 
   return (
@@ -99,43 +142,58 @@ export function LocationCompareTable() {
                 <div className="mt-1 text-sm text-gray-500">{location.canonicalAddress}</div>
               </div>
             ))}
-            {[...rows, ...savedPlaceRows].map((row) => (
+            {[...staticRows, ...poiWalkRows, ...savedPlaceRows].map((row) => (
               <Fragment key={row.key}>
                 <div key={`${row.key}-label`} className="bg-white/60 p-4 text-sm font-medium text-gray-600">
                   {row.label}
                 </div>
                 {comparedLocations.map((location) => {
-                  const grocery = getNearestRouteByType(
-                    location.analysis.routeMetrics,
-                    "grocery"
-                  );
                   const savedPlaceRoutes = getSavedPlaceRoutes(location.analysis.routeMetrics);
                   const parks = location.analysis.nearbyAmenities.filter(
                     (amenity) => amenity.category === "park"
                   ).length;
+                  const savedPlaceRoute =
+                    row.type === "savedPlaceTime"
+                      ? savedPlaceRoutes.find((route) => route.destinationId === row.destinationId)
+                      : undefined;
 
                   const value =
-                    row.key === "overall"
-                      ? location.analysis.score.overallScore
-                      : row.key === "safety"
-                        ? location.analysis.score.safetyScore
-                        : row.key === "accessibility"
-                          ? location.analysis.score.accessibilityScore
-                          : row.key === "lifestyle"
-                            ? location.analysis.score.lifestyleScore
-                            : row.key === "grocery"
-                              ? formatMinutes(grocery?.walkingMinutes)
-                              : row.key === "savedPlacesAverage"
-                                ? formatMinutes(getAverageSavedPlacePeak(location.analysis.routeMetrics))
-                                : row.key === "parks"
-                                  ? parks
-                                  : formatMinutes(
-                                      savedPlaceRoutes.find(
-                                        (route) =>
-                                          "destinationId" in row &&
-                                          route.destinationId === row.destinationId
-                                      )?.driveMinutesPeak
-                                    );
+                    row.type === "score"
+                      ? row.key === "overall"
+                        ? location.analysis.score.overallScore
+                        : row.key === "confidence"
+                          ? location.analysis.score.confidenceScore
+                          : row.key === "safety"
+                            ? location.analysis.score.safetyScore
+                            : row.key === "accessibility"
+                              ? location.analysis.score.accessibilityScore
+                              : row.key === "lifestyle"
+                                ? location.analysis.score.lifestyleScore
+                                : row.key === "walk"
+                                  ? location.analysis.score.walkScore
+                                  : row.key === "drive"
+                                    ? location.analysis.score.driveScore
+                                    : row.key === "affordability"
+                                      ? location.analysis.score.affordabilityScore
+                                      : location.analysis.score.homeFitScore
+                      : row.type === "travel"
+                        ? row.key === "savedPlacesAverage"
+                          ? formatMinutes(getAverageSavedPlacePeak(location.analysis.routeMetrics))
+                          : parks
+                        : row.type === "poiWalk"
+                          ? formatMinutes(
+                              getNearestRouteByType(
+                                location.analysis.routeMetrics,
+                                row.category
+                              )?.walkingMinutes
+                            )
+                          : formatMinutes(
+                              row.timeType === "walk"
+                                ? savedPlaceRoute?.walkingMinutes
+                                : row.timeType === "offPeak"
+                                  ? savedPlaceRoute?.driveMinutesOffPeak
+                                  : savedPlaceRoute?.driveMinutesPeak
+                            );
 
                   return (
                     <div key={`${row.key}-${location.id}`} className="bg-white/60 p-4 text-sm text-ink">

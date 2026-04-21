@@ -1,5 +1,4 @@
-import { SavedPlacesManager } from "@/components/preferences/saved-places-manager";
-import { SettingsManager } from "@/components/preferences/settings-manager";
+import { PreferencesTabs } from "@/components/preferences/preferences-tabs";
 import { SectionHeading } from "@/components/ui/section-heading";
 
 export default function PreferencesPage() {
@@ -12,8 +11,7 @@ export default function PreferencesPage() {
           description="These settings are stored locally and control how locations are evaluated and displayed. Ranking settings are intentionally excluded for now."
         />
       </section>
-      <SettingsManager />
-      <SavedPlacesManager />
+      <PreferencesTabs />
     </div>
   );
 }

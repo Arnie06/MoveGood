@@ -29,7 +29,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               Compare
             </Link>
             <Link href="/preferences" className="rounded-full bg-white/80 px-4 py-2">
-              Saved Places
+              Preferences
             </Link>
           </nav>
         </div>
