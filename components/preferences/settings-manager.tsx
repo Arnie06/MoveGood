@@ -315,7 +315,7 @@ export function SettingsManager() {
           <SettingLabel label="Required saved places" tip="Selected places become mandatory commute checks; if a location has missing or poor routing for them, it is penalized or can fail must-haves." className="mb-2" />
           <div className="grid gap-2 md:grid-cols-2">
             {preferences.savedPlaces.length === 0 ? (
-              <div className="text-sm text-gray-500">Add saved places below to mark required ones.</div>
+              <div className="text-sm text-gray-500">Add places in My Places to mark required ones here.</div>
             ) : preferences.savedPlaces.map((place) => (
               <label key={place.id} className="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" checked={settings.mustHaves.requiredSavedPlaceIds.includes(place.id)} onChange={(event) => {

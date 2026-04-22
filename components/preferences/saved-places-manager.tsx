@@ -62,7 +62,7 @@ export function SavedPlacesManager() {
   return (
     <Card className="p-6">
       <div className="mb-6">
-        <h3 className="font-display text-2xl text-ink">Saved personal places</h3>
+        <h3 className="font-display text-2xl text-ink">My places</h3>
         <p className="mt-2 text-sm text-gray-600">
           Add work, family, school, doctors, or any other place you want to factor into scoring later.
         </p>

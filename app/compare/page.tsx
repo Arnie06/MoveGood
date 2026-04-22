@@ -7,8 +7,8 @@ export default function ComparePage() {
       <section className="section-shell p-6 sm:p-8">
         <SectionHeading
           eyebrow="Compare"
-          title="See your saved locations side-by-side"
-          description="Build a shortlist from the map browser, then compare scores, nearby access, and travel time to every saved personal place."
+          title="Build your shortlist with a clear side-by-side view"
+          description="Select saved locations, then compare scoring, nearby essentials, and travel time to each personal place. Missing route data is backfilled with distance-based estimates so rows stay populated."
         />
       </section>
       <LocationCompareTable />

@@ -22,14 +22,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link href="/" className="rounded-full bg-white/80 px-4 py-2">
               Map
             </Link>
-            <Link href="/search" className="rounded-full bg-white/80 px-4 py-2">
-              Analyze
-            </Link>
             <Link href="/compare" className="rounded-full bg-white/80 px-4 py-2">
               Compare
             </Link>
-            <Link href="/preferences" className="rounded-full bg-white/80 px-4 py-2">
-              Preferences
+            <Link href="/my-places" className="rounded-full bg-white/80 px-4 py-2">
+              My Places
+            </Link>
+            <Link href="/settings" className="rounded-full bg-white/80 px-4 py-2">
+              Settings
             </Link>
           </nav>
         </div>
