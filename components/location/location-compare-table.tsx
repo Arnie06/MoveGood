@@ -36,7 +36,6 @@ const staticRows = [
   { key: "drive", label: "Drive", type: "score" as const },
   { key: "affordability", label: "Affordability", type: "score" as const },
   { key: "homeFit", label: "Home fit", type: "score" as const },
-  { key: "savedPlacesAverage", label: "Average saved place peak drive", type: "travel" as const },
   { key: "parksCount", label: "Nearby parks", type: "travel" as const }
 ];
 
@@ -72,6 +71,14 @@ function estimateRouteTimes(distanceMiles: number) {
 function getAverageDriveMinutes(offPeak?: number, peak?: number) {
   if (offPeak != null && peak != null) return (offPeak + peak) / 2;
   return offPeak ?? peak;
+}
+
+function estimateWalkFromDrive(offPeak?: number, peak?: number) {
+  const referenceDrive = getAverageDriveMinutes(offPeak, peak);
+  if (referenceDrive == null) return undefined;
+  // Convert drive-time estimate back to rough walk minutes using the same distance model:
+  // drive ≈ distance * 4.5 and walk ≈ distance * 20.
+  return Math.max(4, Math.round((referenceDrive / 4.5) * 20));
 }
 
 export function LocationCompareTable() {
@@ -244,29 +251,18 @@ export function LocationCompareTable() {
                           )
                         ).walkingMinutes
                       : undefined;
-                  const allSavedPlacePeakValues = [
-                    ...savedPlaceRoutes
-                      .map((route) => route.driveMinutesPeak)
-                      .filter((value): value is number => value != null),
-                    ...preferences.savedPlaces
-                      .filter((place) =>
-                        !savedPlaceRoutes.some((route) => route.destinationId === place.id)
-                      )
-                      .map((place) =>
-                        estimateRouteTimes(
-                          haversineMiles(
-                            location.analysis.property.lat,
-                            location.analysis.property.lng,
-                            place.lat,
-                            place.lng
-                          )
-                        ).driveMinutesPeak
-                      )
-                  ];
-                  const averageSavedPlacePeak =
-                    allSavedPlacePeakValues.length > 0
-                      ? allSavedPlacePeakValues.reduce((total, value) => total + value, 0) /
-                        allSavedPlacePeakValues.length
+                  const nearestRouteForCategory =
+                    row.type === "poiWalk"
+                      ? getNearestRouteByType(location.analysis.routeMetrics, row.category)
+                      : undefined;
+                  const derivedPoiWalkMinutes =
+                    row.type === "poiWalk"
+                      ? nearestRouteForCategory?.walkingMinutes ??
+                        estimateWalkFromDrive(
+                          nearestRouteForCategory?.driveMinutesOffPeak,
+                          nearestRouteForCategory?.driveMinutesPeak
+                        ) ??
+                        estimatedPoiWalkMinutes
                       : undefined;
 
                   const value =
@@ -289,14 +285,9 @@ export function LocationCompareTable() {
                                       ? location.analysis.score.affordabilityScore
                                       : location.analysis.score.homeFitScore
                       : row.type === "travel"
-                        ? row.key === "savedPlacesAverage"
-                          ? formatMinutes(averageSavedPlacePeak)
-                          : parks
+                        ? parks
                         : row.type === "poiWalk"
-                          ? formatMinutes(
-                              getNearestRouteByType(location.analysis.routeMetrics, row.category)
-                                ?.walkingMinutes ?? estimatedPoiWalkMinutes
-                            )
+                          ? formatMinutes(derivedPoiWalkMinutes)
                           : formatMinutes(
                               row.timeType === "walk"
                                 ? savedPlaceRoute?.walkingMinutes ?? estimatedSavedPlaceRoute?.walkingMinutes
