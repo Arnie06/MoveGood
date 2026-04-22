@@ -249,7 +249,7 @@ export function LocationBrowser() {
                     )}
                   </div>
 
-                  <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+                  <section className="space-y-6">
                     <ScoreCard score={selected.score} />
                     <RequirementsPanel score={selected.score} />
                   </section>
@@ -290,7 +290,7 @@ export function LocationBrowser() {
                       </div>
                     </Card>
                   ) : null}
-                  <div className={`grid gap-4 ${showBrowseCrime ? "xl:grid-cols-2" : ""}`}>
+                  <div className="grid gap-4">
                     <Card className="p-5">
                       <div className="text-sm font-semibold uppercase tracking-[0.2em] text-ocean/70">
                         Visible POIs
