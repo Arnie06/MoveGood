@@ -40,19 +40,19 @@ function buildEstimatedRoute(item: AnalyzedLocation, place: SavedPlace) {
   };
 }
 
-function getPeakDelta(offPeak?: number, peak?: number) {
-  if (offPeak == null || peak == null) return "Unavailable";
-  const delta = peak - offPeak;
-  if (delta <= 0) return "No traffic penalty";
-  return `+${delta} min in traffic`;
+function getAverageDriveMinutes(offPeak?: number, peak?: number) {
+  if (offPeak != null && peak != null) return (offPeak + peak) / 2;
+  return offPeak ?? peak;
 }
 
 export function PreferenceTravelPanel({
   item,
-  savedPlaces
+  savedPlaces,
+  compact = false
 }: {
   item: AnalyzedLocation;
   savedPlaces: SavedPlace[];
+  compact?: boolean;
 }) {
   if (savedPlaces.length === 0) return null;
 
@@ -64,7 +64,7 @@ export function PreferenceTravelPanel({
         </div>
         <h3 className="font-display text-2xl text-ink">Travel times for every personal place</h3>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className={compact ? "grid gap-4" : "grid gap-4 md:grid-cols-2"}>
         {savedPlaces.map((place) => {
           const route = getSavedPlaceRoute(item, place);
           const effectiveRoute = route ?? buildEstimatedRoute(item, place);
@@ -72,12 +72,19 @@ export function PreferenceTravelPanel({
           return (
             <div key={place.id} className="rounded-2xl border border-black/10 bg-black/[0.02] p-4">
               <div className="font-semibold text-ink">{place.label}</div>
-              <div className="mt-1 text-sm text-gray-500">{place.address}</div>
-              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div className={`mt-1 text-gray-500 ${compact ? "text-base leading-7" : "text-sm"}`}>
+                {place.address}
+              </div>
+              <div className={`mt-4 grid gap-3 text-sm ${compact ? "grid-cols-1" : "grid-cols-2"}`}>
                 <div>
-                  <div className="text-gray-500">Drive off-peak</div>
+                  <div className="text-gray-500">Drive avg</div>
                   <div className="font-semibold text-ink">
-                    {formatMinutes(effectiveRoute.driveMinutesOffPeak)}
+                    {formatMinutes(
+                      getAverageDriveMinutes(
+                        effectiveRoute.driveMinutesOffPeak,
+                        effectiveRoute.driveMinutesPeak
+                      )
+                    )}
                   </div>
                 </div>
                 <div>
@@ -89,12 +96,6 @@ export function PreferenceTravelPanel({
                 <div>
                   <div className="text-gray-500">Walk</div>
                   <div className="font-semibold text-ink">{formatMinutes(effectiveRoute.walkingMinutes)}</div>
-                </div>
-                <div>
-                  <div className="text-gray-500">Traffic impact</div>
-                  <div className="font-semibold text-ink">
-                    {getPeakDelta(effectiveRoute.driveMinutesOffPeak, effectiveRoute.driveMinutesPeak)}
-                  </div>
                 </div>
               </div>
               {!route ? (

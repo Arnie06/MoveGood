@@ -17,7 +17,13 @@ function getNearestRoute(item: AnalyzedLocation, category: (typeof categories)[n
   return getNearestRouteByType(item.routeMetrics, category);
 }
 
-export function AmenitiesPanel({ item }: { item: AnalyzedLocation }) {
+export function AmenitiesPanel({
+  item,
+  compact = false
+}: {
+  item: AnalyzedLocation;
+  compact?: boolean;
+}) {
   return (
     <Card className="p-6">
       <div className="mb-4">
@@ -26,7 +32,7 @@ export function AmenitiesPanel({ item }: { item: AnalyzedLocation }) {
         </div>
         <h3 className="font-display text-2xl text-ink">What is close by</h3>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className={compact ? "grid gap-4" : "grid gap-4 md:grid-cols-2 xl:grid-cols-3"}>
         {categories.map((category) => {
           const route = getNearestRoute(item, category);
           const matches = item.nearbyAmenities.filter((amenity) => amenity.category === category);
@@ -49,7 +55,7 @@ export function AmenitiesPanel({ item }: { item: AnalyzedLocation }) {
                   {matches.length} nearby
                 </div>
               </div>
-              <div className="space-y-1 text-sm" style={{ color: palette.text }}>
+              <div className={`space-y-1 ${compact ? "text-[1.03rem] leading-8" : "text-sm"}`} style={{ color: palette.text }}>
                 <div>Nearest: {route?.destinationLabel ?? nearestAmenity?.name ?? "No nearby places found"}</div>
                 <div>Walk: {formatMinutes(route?.walkingMinutes)}</div>
                 <div>Drive off-peak: {formatMinutes(route?.driveMinutesOffPeak)}</div>

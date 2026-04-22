@@ -253,12 +253,13 @@ export function LocationBrowser() {
                     <ScoreCard score={selected.score} />
                     <RequirementsPanel score={selected.score} />
                   </section>
-                  <ExplanationPanel item={selected} />
+                  <ExplanationPanel item={selected} compact />
                   <PreferenceTravelPanel
                     item={selected}
                     savedPlaces={preferences.savedPlaces.filter((place) => place.includeInScoring)}
+                    compact
                   />
-                  <AmenitiesPanel item={selected} />
+                  <AmenitiesPanel item={selected} compact />
                 </>
               ) : pendingSelection ? (
                 <div className="space-y-4">

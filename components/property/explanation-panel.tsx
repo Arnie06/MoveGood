@@ -3,7 +3,13 @@ import { CheckCircle2, CircleAlert, Database } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { AnalyzedLocation } from "@/lib/types/domain";
 
-export function ExplanationPanel({ item }: { item: AnalyzedLocation }) {
+export function ExplanationPanel({
+  item,
+  compact = false
+}: {
+  item: AnalyzedLocation;
+  compact?: boolean;
+}) {
   return (
     <Card className="space-y-6 p-6">
       <div>
@@ -12,8 +18,8 @@ export function ExplanationPanel({ item }: { item: AnalyzedLocation }) {
         </div>
         <h3 className="font-display text-2xl text-ink">What helped and what hurt</h3>
       </div>
-      <div className="grid gap-6 md:grid-cols-3">
-        <div>
+      <div className={compact ? "space-y-6" : "grid gap-6 md:grid-cols-3"}>
+        <div className={compact ? "border-b border-black/10 pb-5" : undefined}>
           <div className="mb-3 flex items-center gap-2 font-semibold text-moss">
             <CheckCircle2 className="h-5 w-5" />
             Helped
@@ -24,7 +30,7 @@ export function ExplanationPanel({ item }: { item: AnalyzedLocation }) {
             )) : <li>No standout positives surfaced for this location yet.</li>}
           </ul>
         </div>
-        <div>
+        <div className={compact ? "border-b border-black/10 pb-5" : undefined}>
           <div className="mb-3 flex items-center gap-2 font-semibold text-clay">
             <CircleAlert className="h-5 w-5" />
             Tradeoffs

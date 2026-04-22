@@ -3,10 +3,10 @@
 import { Fragment, useMemo } from "react";
 
 import { useLocationStore } from "@/components/providers/location-store-provider";
+import { usePreferences } from "@/components/providers/preferences-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-  getAverageSavedPlacePeak,
   getNearestRouteByType,
   getSavedPlaceRoutes
 } from "@/lib/route-metrics";
@@ -47,17 +47,62 @@ const poiWalkRows = poiWalkCategories.map((category) => ({
   category
 }));
 
-type SavedPlaceTime = "walk" | "offPeak" | "peak";
+type SavedPlaceTime = "walk" | "avg" | "peak";
+
+function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number) {
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const earthRadiusMiles = 3958.8;
+  const dLat = toRadians(bLat - aLat);
+  const dLng = toRadians(bLng - aLng);
+  const lat1 = toRadians(aLat);
+  const lat2 = toRadians(bLat);
+  const sinLat = Math.sin(dLat / 2);
+  const sinLng = Math.sin(dLng / 2);
+  const a = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
+  return 2 * earthRadiusMiles * Math.asin(Math.sqrt(a));
+}
+
+function estimateRouteTimes(distanceMiles: number) {
+  const driveMinutesOffPeak = Math.max(2, Math.round(distanceMiles * 4.5));
+  const driveMinutesPeak = Math.max(driveMinutesOffPeak + 2, Math.round(driveMinutesOffPeak * 1.5));
+  const walkingMinutes = Math.max(4, Math.round(distanceMiles * 20));
+  return { driveMinutesOffPeak, driveMinutesPeak, walkingMinutes };
+}
+
+function getAverageDriveMinutes(offPeak?: number, peak?: number) {
+  if (offPeak != null && peak != null) return (offPeak + peak) / 2;
+  return offPeak ?? peak;
+}
 
 export function LocationCompareTable() {
+  const { preferences } = usePreferences();
   const { savedLocations, compareIds, setCompareIncluded, removeLocation } = useLocationStore();
 
   const comparedLocations = useMemo(
     () => savedLocations.filter((location) => compareIds.includes(location.id)),
     [compareIds, savedLocations]
   );
+
+  const savedPlaceLookup = useMemo(
+    () =>
+      new Map(
+        preferences.savedPlaces.map((place) => [
+          place.id,
+          { id: place.id, label: place.label, lat: place.lat, lng: place.lng }
+        ])
+      ),
+    [preferences.savedPlaces]
+  );
+
   const savedPlaceRows = useMemo(() => {
     const uniqueRows = new Map<string, { destinationId: string; destinationLabel: string }>();
+
+    preferences.savedPlaces.forEach((place) => {
+      uniqueRows.set(place.id, {
+        destinationId: place.id,
+        destinationLabel: place.label
+      });
+    });
 
     comparedLocations.forEach((location) => {
       getSavedPlaceRoutes(location.analysis.routeMetrics).forEach((route) => {
@@ -75,20 +120,20 @@ export function LocationCompareTable() {
     );
 
     return sortedPlaces.flatMap((place) =>
-      (["walk", "offPeak", "peak"] as SavedPlaceTime[]).map((timeType) => ({
+      (["walk", "avg", "peak"] as SavedPlaceTime[]).map((timeType) => ({
         key: `saved-place-${place.destinationId}-${timeType}`,
         label:
           timeType === "walk"
             ? `${place.destinationLabel} walk`
-            : timeType === "offPeak"
-              ? `${place.destinationLabel} drive off-peak`
+            : timeType === "avg"
+              ? `${place.destinationLabel} drive avg`
               : `${place.destinationLabel} drive peak`,
         type: "savedPlaceTime" as const,
         destinationId: place.destinationId,
         timeType
       }))
     );
-  }, [comparedLocations]);
+  }, [comparedLocations, preferences.savedPlaces]);
 
   return (
     <div className="space-y-6">
@@ -156,6 +201,73 @@ export function LocationCompareTable() {
                     row.type === "savedPlaceTime"
                       ? savedPlaceRoutes.find((route) => route.destinationId === row.destinationId)
                       : undefined;
+                  const savedPlace = row.type === "savedPlaceTime" ? savedPlaceLookup.get(row.destinationId) : undefined;
+                  const estimatedSavedPlaceRoute =
+                    row.type === "savedPlaceTime" && savedPlace
+                      ? estimateRouteTimes(
+                          haversineMiles(
+                            location.analysis.property.lat,
+                            location.analysis.property.lng,
+                            savedPlace.lat,
+                            savedPlace.lng
+                          )
+                        )
+                      : undefined;
+                  const nearestAmenityForCategory =
+                    row.type === "poiWalk"
+                      ? location.analysis.nearbyAmenities
+                          .filter((amenity) => amenity.category === row.category)
+                          .sort((a, b) => {
+                            const distanceA = haversineMiles(
+                              location.analysis.property.lat,
+                              location.analysis.property.lng,
+                              a.lat,
+                              a.lng
+                            );
+                            const distanceB = haversineMiles(
+                              location.analysis.property.lat,
+                              location.analysis.property.lng,
+                              b.lat,
+                              b.lng
+                            );
+                            return distanceA - distanceB;
+                          })[0]
+                      : undefined;
+                  const estimatedPoiWalkMinutes =
+                    row.type === "poiWalk" && nearestAmenityForCategory
+                      ? estimateRouteTimes(
+                          haversineMiles(
+                            location.analysis.property.lat,
+                            location.analysis.property.lng,
+                            nearestAmenityForCategory.lat,
+                            nearestAmenityForCategory.lng
+                          )
+                        ).walkingMinutes
+                      : undefined;
+                  const allSavedPlacePeakValues = [
+                    ...savedPlaceRoutes
+                      .map((route) => route.driveMinutesPeak)
+                      .filter((value): value is number => value != null),
+                    ...preferences.savedPlaces
+                      .filter((place) =>
+                        !savedPlaceRoutes.some((route) => route.destinationId === place.id)
+                      )
+                      .map((place) =>
+                        estimateRouteTimes(
+                          haversineMiles(
+                            location.analysis.property.lat,
+                            location.analysis.property.lng,
+                            place.lat,
+                            place.lng
+                          )
+                        ).driveMinutesPeak
+                      )
+                  ];
+                  const averageSavedPlacePeak =
+                    allSavedPlacePeakValues.length > 0
+                      ? allSavedPlacePeakValues.reduce((total, value) => total + value, 0) /
+                        allSavedPlacePeakValues.length
+                      : undefined;
 
                   const value =
                     row.type === "score"
@@ -178,21 +290,25 @@ export function LocationCompareTable() {
                                       : location.analysis.score.homeFitScore
                       : row.type === "travel"
                         ? row.key === "savedPlacesAverage"
-                          ? formatMinutes(getAverageSavedPlacePeak(location.analysis.routeMetrics))
+                          ? formatMinutes(averageSavedPlacePeak)
                           : parks
                         : row.type === "poiWalk"
                           ? formatMinutes(
-                              getNearestRouteByType(
-                                location.analysis.routeMetrics,
-                                row.category
-                              )?.walkingMinutes
+                              getNearestRouteByType(location.analysis.routeMetrics, row.category)
+                                ?.walkingMinutes ?? estimatedPoiWalkMinutes
                             )
                           : formatMinutes(
                               row.timeType === "walk"
-                                ? savedPlaceRoute?.walkingMinutes
-                                : row.timeType === "offPeak"
-                                  ? savedPlaceRoute?.driveMinutesOffPeak
-                                  : savedPlaceRoute?.driveMinutesPeak
+                                ? savedPlaceRoute?.walkingMinutes ?? estimatedSavedPlaceRoute?.walkingMinutes
+                                : row.timeType === "avg"
+                                  ? getAverageDriveMinutes(
+                                      savedPlaceRoute?.driveMinutesOffPeak ??
+                                        estimatedSavedPlaceRoute?.driveMinutesOffPeak,
+                                      savedPlaceRoute?.driveMinutesPeak ??
+                                        estimatedSavedPlaceRoute?.driveMinutesPeak
+                                    )
+                                  : savedPlaceRoute?.driveMinutesPeak ??
+                                    estimatedSavedPlaceRoute?.driveMinutesPeak
                             );
 
                   return (
