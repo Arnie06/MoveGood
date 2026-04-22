@@ -649,6 +649,16 @@ export function DemoMap({
   ]);
 
   useEffect(() => {
+    if (!mapRef.current || !highlightedBrowseTarget) return;
+
+    mapRef.current.flyTo({
+      center: [highlightedBrowseTarget.lng, highlightedBrowseTarget.lat],
+      zoom: Math.max(mapRef.current.getZoom(), 13),
+      speed: 0.9
+    });
+  }, [highlightedBrowseTarget]);
+
+  useEffect(() => {
     if (!mapRef.current || !hasMounted) return;
 
     const activeMap = mapRef.current;

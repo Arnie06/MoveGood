@@ -39,6 +39,11 @@ export function LocationBrowser() {
   const [error, setError] = useState<string | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null);
+  const [highlightedAmenity, setHighlightedAmenity] = useState<{
+    lat: number;
+    lng: number;
+    label: string;
+  } | null>(null);
   const [browseAmenities, setBrowseAmenities] = useState<AmenityPOI[]>([]);
   const [browseCrimeIncidents, setBrowseCrimeIncidents] = useState<CrimeIncident[]>([]);
   const [isBrowseViewportLoading, setIsBrowseViewportLoading] = useState(false);
@@ -64,6 +69,7 @@ export function LocationBrowser() {
     setPendingSelection(input);
     setSelected(null);
     setSaveName("");
+    setHighlightedAmenity(null);
 
     try {
       const params = new URLSearchParams();
@@ -98,6 +104,7 @@ export function LocationBrowser() {
     setSaveName("");
     setError(null);
     setPendingSelection(null);
+    setHighlightedAmenity(null);
   }
 
   function saveCurrentLocation() {
@@ -158,7 +165,9 @@ export function LocationBrowser() {
               setShowBrowseCrime(showCrimeOverlay);
             }}
             highlightedBrowseTarget={
-              pendingSelection?.lat != null && pendingSelection?.lng != null
+              highlightedAmenity
+                ? highlightedAmenity
+                : pendingSelection?.lat != null && pendingSelection?.lng != null
                 ? {
                     label: pendingSelection.label,
                     lat: pendingSelection.lat,
@@ -259,7 +268,17 @@ export function LocationBrowser() {
                     savedPlaces={preferences.savedPlaces.filter((place) => place.includeInScoring)}
                     compact
                   />
-                  <AmenitiesPanel item={selected} compact />
+                  <AmenitiesPanel
+                    item={selected}
+                    compact
+                    onAmenitySelect={(amenity) =>
+                      setHighlightedAmenity({
+                        lat: amenity.lat,
+                        lng: amenity.lng,
+                        label: amenity.name
+                      })
+                    }
+                  />
                 </>
               ) : pendingSelection ? (
                 <div className="space-y-4">
