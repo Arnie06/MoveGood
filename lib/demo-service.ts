@@ -8,6 +8,7 @@ import {
   writeCachedGeocode,
   writeCachedReverseGeocode
 } from "@/lib/geocode-cache";
+import { getLocalPoisInBounds } from "@/lib/local-pois";
 import { getLosAngelesAmenitiesInBounds, isWithinLosAngelesBounds } from "@/lib/los-angeles-pois";
 import { buildManualPropertyId } from "@/lib/manual-property";
 import { buildLiveSources } from "@/lib/providers/live";
@@ -191,8 +192,23 @@ function buildEstimatedRouteMetrics(input: {
 }
 
 async function loadNearbyAmenities(lat: number, lng: number) {
+  const categories = ["grocery", "gym", "park", "restaurant", "coffee", "bar"] as const;
+  const findLocalAmenities = async (radiusMiles: number) => {
+    const bounds = buildBoundsFromRadius(lat, lng, radiusMiles);
+    const localAmenities = await getLocalPoisInBounds({
+      ...bounds,
+      categories: [...categories]
+    });
+    return localAmenities.filter(
+      (amenity) => haversineMiles(lat, lng, amenity.lat, amenity.lng) <= radiusMiles + 0.25
+    );
+  };
+  const nearbyLocalAmenities = await findLocalAmenities(2);
+  if (nearbyLocalAmenities.length > 0) {
+    return nearbyLocalAmenities;
+  }
+
   if (isWithinLosAngelesBounds(lat, lng)) {
-    const categories = ["grocery", "gym", "park", "restaurant", "coffee", "bar"] as const;
     const nearbyAmenities = await getLosAngelesAmenitiesInBounds({
       ...buildBoundsFromRadius(lat, lng, 2),
       categories: [...categories]
@@ -217,58 +233,41 @@ async function loadNearbyAmenities(lat: number, lng: number) {
     if (widerRadiusFiltered.length > 0) {
       return widerRadiusFiltered;
     }
-
-    if (isLocalOnlyMode()) {
-      return buildEstimatedAmenities(lat, lng);
-    }
-
-    const providerNearbyAmenities = await poiProvider.getNearbyAmenities({
-      lat,
-      lng,
-      radiusMiles: 2,
-      categories: [...categories]
-    });
-    if (providerNearbyAmenities.length > 0) {
-      return providerNearbyAmenities;
-    }
-
-    const providerWiderAmenities = await poiProvider.getNearbyAmenities({
-      lat,
-      lng,
-      radiusMiles: 4,
-      categories: [...categories]
-    });
-    if (providerWiderAmenities.length > 0) {
-      return providerWiderAmenities;
-    }
-
-    return buildEstimatedAmenities(lat, lng);
   }
 
-  const nearbyAmenities = await poiProvider.getNearbyAmenities({
-    lat,
-    lng,
-    radiusMiles: 2
-  });
-
-  if (nearbyAmenities.length > 0) {
-    return nearbyAmenities;
-  }
-
-  const widerAmenities = await poiProvider.getNearbyAmenities({
-    lat,
-    lng,
-    radiusMiles: 4
-  });
-  if (widerAmenities.length > 0) {
-    return widerAmenities;
+  const widerLocalAmenities = await findLocalAmenities(4);
+  if (widerLocalAmenities.length > 0) {
+    return widerLocalAmenities;
   }
 
   if (isLocalOnlyMode()) {
     return buildEstimatedAmenities(lat, lng);
   }
 
-  return widerAmenities;
+  const providerNearbyAmenities = await poiProvider.getNearbyAmenities({
+    lat,
+    lng,
+    radiusMiles: 2,
+    categories: [...categories]
+  });
+  if (providerNearbyAmenities.length > 0) {
+    return providerNearbyAmenities;
+  }
+
+  const providerWiderAmenities = await poiProvider.getNearbyAmenities({
+    lat,
+    lng,
+    radiusMiles: 4,
+    categories: [...categories]
+  });
+  if (providerWiderAmenities.length > 0) {
+    return providerWiderAmenities;
+  }
+
+  if (isWithinLosAngelesBounds(lat, lng)) {
+    return buildEstimatedAmenities(lat, lng);
+  }
+  return [];
 }
 
 async function cachedGeocode(address: string) {

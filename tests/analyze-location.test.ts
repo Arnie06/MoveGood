@@ -10,6 +10,7 @@ const mockGetNearbyAmenities = vi.fn();
 const mockGetSafetyMetrics = vi.fn();
 const mockGetCrimeIncidents = vi.fn();
 const mockGetRouteMetrics = vi.fn();
+const mockGetLocalPoisInBounds = vi.fn();
 
 vi.mock("@/lib/geocode-cache", () => ({
   readCachedAutocomplete: vi.fn().mockResolvedValue(null),
@@ -23,6 +24,10 @@ vi.mock("@/lib/geocode-cache", () => ({
 vi.mock("@/lib/los-angeles-pois", () => ({
   isWithinLosAngelesBounds: vi.fn().mockReturnValue(false),
   getLosAngelesAmenitiesInBounds: vi.fn().mockResolvedValue([])
+}));
+
+vi.mock("@/lib/local-pois", () => ({
+  getLocalPoisInBounds: mockGetLocalPoisInBounds
 }));
 
 vi.mock("@/lib/providers/registry", () => ({
@@ -70,6 +75,7 @@ describe("analyzeLocation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.LOCAL_ONLY_MODE = previousLocalOnly;
+    mockGetLocalPoisInBounds.mockResolvedValue([]);
   });
 
   it("builds a full analysis result for typed address inputs", async () => {
@@ -230,5 +236,48 @@ describe("analyzeLocation", () => {
     expect(result?.score.dataCompleteness).not.toContain(
       "Travel-time data is limited, so commute scoring is conservative"
     );
+  });
+
+  it("prefers local POI dataset in local-only mode before estimated amenities", async () => {
+    process.env.LOCAL_ONLY_MODE = "true";
+    mockReverseGeocode.mockResolvedValue({
+      canonicalAddress: "Dropped Pin",
+      lat: 34.05,
+      lng: -118.24,
+      city: "Los Angeles",
+      state: "CA",
+      zipCode: "90012"
+    });
+    mockGetLocalPoisInBounds.mockResolvedValue([
+      {
+        id: "local-grocery-1",
+        name: "Local Fresh Market",
+        category: "grocery",
+        lat: 34.0505,
+        lng: -118.2395,
+        address: "123 Local St"
+      },
+      {
+        id: "local-coffee-1",
+        name: "Bean Corner",
+        category: "coffee",
+        lat: 34.0502,
+        lng: -118.2402,
+        address: "456 Roast Ave"
+      }
+    ]);
+    mockGetCrimeIncidents.mockResolvedValue([]);
+    mockGetSafetyMetrics.mockResolvedValue([]);
+    mockGetRouteMetrics.mockRejectedValue(new Error("Routing unavailable"));
+
+    const { analyzeLocation } = await import("@/lib/demo-service");
+    const result = await analyzeLocation({
+      lat: 34.05,
+      lng: -118.24
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.nearbyAmenities.some((amenity) => amenity.name === "Local Fresh Market")).toBe(true);
+    expect(result?.nearbyAmenities.some((amenity) => amenity.name.startsWith("Estimated"))).toBe(false);
   });
 });
