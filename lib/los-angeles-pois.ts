@@ -6,6 +6,12 @@ const LOS_ANGELES_POI_CACHE_TTL_MS = getApiCacheTtlMs(
   Number(process.env.LOS_ANGELES_POI_CACHE_TTL_MS ?? 72 * 60 * 60 * 1000)
 );
 const GEOAPIFY_PAGE_LIMIT = 20;
+const PARK_TILE_COLS = 4;
+const PARK_TILE_ROWS = 4;
+const PARK_MAX_PAGES_PER_TILE = 8;
+const CATEGORY_CACHE_VERSION: Partial<Record<AmenityCategory, number>> = {
+  park: 2
+};
 
 // County-scale cache bounds for Los Angeles County, including Catalina and the northern desert area.
 // This is intentionally a little broader than the county outline so we can fully hydrate the county
@@ -43,11 +49,49 @@ type GeoapifyFeature = {
 };
 
 function buildCategoryKey(category: AmenityCategory) {
-  return `los-angeles:${category}`;
+  const version = CATEGORY_CACHE_VERSION[category] ?? 1;
+  return `los-angeles:${category}:v${version}`;
 }
 
-function getRectFilter() {
-  return `rect:${LOS_ANGELES_COUNTY_CACHE_BOUNDS.west},${LOS_ANGELES_COUNTY_CACHE_BOUNDS.south},${LOS_ANGELES_COUNTY_CACHE_BOUNDS.east},${LOS_ANGELES_COUNTY_CACHE_BOUNDS.north}`;
+function buildRectFilter(bounds: {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}) {
+  return `rect:${bounds.west},${bounds.south},${bounds.east},${bounds.north}`;
+}
+
+function getCategoryFilters(category: AmenityCategory) {
+  if (category !== "park") {
+    return [buildRectFilter(LOS_ANGELES_COUNTY_CACHE_BOUNDS)];
+  }
+
+  const filters: string[] = [];
+  const width =
+    (LOS_ANGELES_COUNTY_CACHE_BOUNDS.east - LOS_ANGELES_COUNTY_CACHE_BOUNDS.west) /
+    PARK_TILE_COLS;
+  const height =
+    (LOS_ANGELES_COUNTY_CACHE_BOUNDS.north - LOS_ANGELES_COUNTY_CACHE_BOUNDS.south) /
+    PARK_TILE_ROWS;
+
+  for (let row = 0; row < PARK_TILE_ROWS; row += 1) {
+    for (let col = 0; col < PARK_TILE_COLS; col += 1) {
+      const west = LOS_ANGELES_COUNTY_CACHE_BOUNDS.west + width * col;
+      const east =
+        col === PARK_TILE_COLS - 1
+          ? LOS_ANGELES_COUNTY_CACHE_BOUNDS.east
+          : LOS_ANGELES_COUNTY_CACHE_BOUNDS.west + width * (col + 1);
+      const south = LOS_ANGELES_COUNTY_CACHE_BOUNDS.south + height * row;
+      const north =
+        row === PARK_TILE_ROWS - 1
+          ? LOS_ANGELES_COUNTY_CACHE_BOUNDS.north
+          : LOS_ANGELES_COUNTY_CACHE_BOUNDS.south + height * (row + 1);
+      filters.push(buildRectFilter({ west, south, east, north }));
+    }
+  }
+
+  return filters;
 }
 
 function normalizeCategory(category: AmenityCategory, rawCategories: string[]) {
@@ -144,32 +188,42 @@ async function fetchLosAngelesCategoryAmenities(
 
   const categories = losAngelesCategoryMap[category];
   const results: AmenityPOI[] = [];
-  let offset = 0;
+  const filters = getCategoryFilters(category);
 
   try {
-    while (true) {
-      const params = new URLSearchParams({
-        categories: categories.join(","),
-        filter: getRectFilter(),
-        limit: String(GEOAPIFY_PAGE_LIMIT),
-        offset: String(offset),
-        apiKey
-      });
-      const url = `https://api.geoapify.com/v2/places?${params.toString()}`;
-      const credits = Math.max(1, Math.ceil(GEOAPIFY_PAGE_LIMIT / 20));
-      const features = await fetchGeoapifyPage(url, credits);
+    for (const filter of filters) {
+      let offset = 0;
+      let pageCount = 0;
 
-      results.push(
-        ...features
-          .map((feature, index) => toAmenity(feature, category, offset + index))
-          .filter(isValidAmenity)
-      );
+      while (true) {
+        const params = new URLSearchParams({
+          categories: categories.join(","),
+          filter,
+          limit: String(GEOAPIFY_PAGE_LIMIT),
+          offset: String(offset),
+          apiKey
+        });
+        const url = `https://api.geoapify.com/v2/places?${params.toString()}`;
+        const credits = Math.max(1, Math.ceil(GEOAPIFY_PAGE_LIMIT / 20));
+        const features = await fetchGeoapifyPage(url, credits);
 
-      if (features.length < GEOAPIFY_PAGE_LIMIT) {
-        break;
+        results.push(
+          ...features
+            .map((feature, index) => toAmenity(feature, category, offset + index))
+            .filter(isValidAmenity)
+        );
+
+        pageCount += 1;
+        if (features.length < GEOAPIFY_PAGE_LIMIT) {
+          break;
+        }
+
+        if (category === "park" && pageCount >= PARK_MAX_PAGES_PER_TILE) {
+          break;
+        }
+
+        offset += GEOAPIFY_PAGE_LIMIT;
       }
-
-      offset += GEOAPIFY_PAGE_LIMIT;
     }
   } catch (error) {
     console.warn(`Failed to hydrate Los Angeles POIs for ${category}`, error);
@@ -208,7 +262,10 @@ export function intersectsLosAngelesBounds(bounds: {
 }
 
 export async function getLosAngelesAmenities(
-  categories: AmenityCategory[] = ["grocery", "gym", "park", "restaurant", "coffee", "bar"]
+  categories: AmenityCategory[] = ["grocery", "gym", "park", "restaurant", "coffee", "bar"],
+  options?: {
+    cacheOnly?: boolean;
+  }
 ) {
   const apiKey = process.env.GEOAPIFY_API_KEY?.trim();
   const uniqueCategories = Array.from(new Set(categories));
@@ -221,6 +278,10 @@ export async function getLosAngelesAmenities(
       });
       if (cached !== null) {
         return cached;
+      }
+
+      if (options?.cacheOnly) {
+        return [];
       }
 
       if (!apiKey) {
@@ -239,12 +300,15 @@ export async function getLosAngelesAmenitiesInBounds(input: {
   east: number;
   north: number;
   categories?: AmenityCategory[];
+  cacheOnly?: boolean;
 }) {
   if (!intersectsLosAngelesBounds(input)) {
     return [];
   }
 
-  const amenities = await getLosAngelesAmenities(input.categories);
+  const amenities = await getLosAngelesAmenities(input.categories, {
+    cacheOnly: input.cacheOnly
+  });
   return amenities.filter(
     (amenity) =>
       amenity.lng >= input.west &&

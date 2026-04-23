@@ -97,13 +97,17 @@ export async function GET(request: NextRequest) {
     let missingCategories = getMissingCategories(categories, combinedAmenities);
 
     const isWithinCountyCacheRegion = intersectsLosAngelesBounds(bounds);
-    if (isWithinCountyCacheRegion && missingCategories !== undefined ? missingCategories.length > 0 : true) {
+    if (isWithinCountyCacheRegion) {
       const visibleAmenities = await getLosAngelesAmenitiesInBounds({
         west,
         south,
         east,
         north,
-        categories: missingCategories === undefined ? categories : missingCategories
+        // Always merge county cache data for in-bounds categories.
+        // Relying on "missing category" checks can leave sparse local coverage gaps
+        // (for example, when a viewport has a few local parks but is still missing many).
+        categories,
+        cacheOnly: true
       });
       combinedAmenities = dedupeAmenities([...combinedAmenities, ...visibleAmenities]);
       missingCategories = getMissingCategories(categories, combinedAmenities);
