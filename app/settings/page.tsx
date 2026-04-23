@@ -8,7 +8,7 @@ export default function SettingsPage() {
         <SectionHeading
           eyebrow="Settings"
           title="Tune scoring, safety, travel, data, map, and UX behavior"
-          description="These settings are stored locally and control how locations are evaluated and displayed. Ranking settings are intentionally excluded for now."
+          description="These settings are stored locally and control how locations are evaluated and displayed. Must-haves now live in My Preferences."
         />
       </section>
       <SettingsManager />

@@ -8,7 +8,11 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 export function SavedPlacesManager() {
-  const { preferences, setPreferences } = usePreferences();
+const { preferences, setPreferences } = usePreferences();
+  const sortedPlaces = [...preferences.savedPlaces].sort((a, b) => {
+    if (a.includeInScoring !== b.includeInScoring) return a.includeInScoring ? -1 : 1;
+    return a.label.localeCompare(b.label);
+  });
   const [label, setLabel] = useState("");
   const [category, setCategory] = useState("");
   const [address, setAddress] = useState("");
@@ -61,32 +65,66 @@ export function SavedPlacesManager() {
 
   return (
     <Card className="p-6">
-      <div className="mb-6">
-        <h3 className="font-display text-2xl text-ink">My places</h3>
-        <p className="mt-2 text-sm text-gray-600">
-          Add work, family, school, doctors, or any other place you want to factor into scoring later.
-        </p>
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="font-display text-2xl text-ink">Saved places</h3>
+          <p className="mt-2 text-sm text-gray-600">
+            Add your frequent destinations so scoring and travel checks reflect your real routine.
+          </p>
+        </div>
+        <div className="rounded-full bg-ocean/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-ocean">
+          {preferences.savedPlaces.length} total
+        </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
-        <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Work" />
-        <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" />
-        <Input
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="Address"
-        />
-      </div>
-      <div className="mt-4">
-        <Button
-          onClick={onAddSavedPlace}
-          disabled={!label || !address || isSubmitting}
-        >
-          {isSubmitting ? "Adding place..." : "Add saved place"}
-        </Button>
+      <div className="grid gap-3 rounded-2xl border border-black/10 bg-white/70 p-4">
+        <div className="grid gap-3 md:grid-cols-3">
+          <label className="space-y-1">
+            <div className="text-sm text-gray-600">Label</div>
+            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Work" />
+          </label>
+          <label className="space-y-1">
+            <div className="text-sm text-gray-600">Category</div>
+            <select
+              className="w-full rounded-2xl border border-black/10 bg-white/90 px-4 py-3 text-sm text-ink shadow-sm outline-none transition focus:border-ocean/30 focus:shadow-md"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              <option value="">Choose category</option>
+              <option value="work">Work</option>
+              <option value="family">Family</option>
+              <option value="school">School</option>
+              <option value="health">Health</option>
+              <option value="errands">Errands</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+          <label className="space-y-1 md:col-span-1">
+            <div className="text-sm text-gray-600">Address</div>
+            <Input
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="123 Main St, City"
+            />
+          </label>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            onClick={onAddSavedPlace}
+            disabled={!label || !address || isSubmitting}
+          >
+            {isSubmitting ? "Adding place..." : "Add place"}
+          </Button>
+          <span className="text-xs text-gray-500">New places are included in scoring by default.</span>
+        </div>
       </div>
       {error ? <p className="mt-3 text-sm text-clay">{error}</p> : null}
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        {preferences.savedPlaces.map((place) => (
+      <div className="mt-6 grid gap-3">
+        {sortedPlaces.length === 0 ? (
+          <div className="rounded-2xl border border-black/10 bg-black/[0.02] p-4 text-sm text-gray-600">
+            No saved places yet. Add work, family, school, or other recurring destinations to personalize results.
+          </div>
+        ) : null}
+        {sortedPlaces.map((place) => (
           <div key={place.id} className="rounded-2xl bg-black/[0.03] p-4">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -96,7 +134,7 @@ export function SavedPlacesManager() {
                   {place.category}
                 </div>
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col items-end gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -114,7 +152,7 @@ export function SavedPlacesManager() {
                     })
                   }
                 >
-                  {place.includeInScoring ? "Included" : "Excluded"}
+                  {place.includeInScoring ? "Included in scoring" : "Excluded from scoring"}
                 </Button>
                 <Button
                   variant="ghost"

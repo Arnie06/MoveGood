@@ -26,7 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               Compare
             </Link>
             <Link href="/my-places" className="rounded-full bg-white/80 px-4 py-2">
-              My Places
+              My Preferences
             </Link>
             <Link href="/settings" className="rounded-full bg-white/80 px-4 py-2">
               Settings

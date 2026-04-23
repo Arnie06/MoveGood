@@ -18,7 +18,7 @@ type CompareRow =
   | {
       key: string;
       label: string;
-      section: "Scores" | "Nearby" | "My Places";
+      section: "Scores" | "Nearby" | "My Preferences";
       type: "score";
       scoreKey: keyof Pick<
         PropertyScore,
@@ -35,21 +35,21 @@ type CompareRow =
   | {
       key: string;
       label: string;
-      section: "Scores" | "Nearby" | "My Places";
+      section: "Scores" | "Nearby" | "My Preferences";
       type: "travel";
       metric: "parksCount";
     }
   | {
       key: string;
       label: string;
-      section: "Scores" | "Nearby" | "My Places";
+      section: "Scores" | "Nearby" | "My Preferences";
       type: "poiWalk";
       category: AmenityCategory;
     }
   | {
       key: string;
       label: string;
-      section: "Scores" | "Nearby" | "My Places";
+      section: "Scores" | "Nearby" | "My Preferences";
       type: "savedPlaceTime";
       destinationId: string;
       timeType: SavedPlaceTime;
@@ -255,7 +255,7 @@ export function LocationCompareTable() {
             : timeType === "avg"
               ? `${place.destinationLabel} drive avg`
               : `${place.destinationLabel} drive peak`,
-        section: "My Places" as const,
+        section: "My Preferences" as const,
         type: "savedPlaceTime" as const,
         destinationId: place.destinationId,
         timeType
@@ -400,7 +400,7 @@ export function LocationCompareTable() {
                 </div>
               ))}
 
-              {(["Scores", "Nearby", "My Places"] as const).map((section) => (
+              {(["Scores", "Nearby", "My Preferences"] as const).map((section) => (
                 <Fragment key={section}>
                   <div
                     className="sticky left-0 z-10 bg-black/[0.04] p-3 text-xs font-semibold uppercase tracking-[0.16em] text-ocean"
