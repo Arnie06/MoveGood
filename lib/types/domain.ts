@@ -189,9 +189,19 @@ export interface AppSettings {
     };
   };
   mustHaves: {
-    preset: "starter" | "family" | "commuter" | "nightlife" | "custom";
-    failFast: boolean;
-    requiredSavedPlaceIds: string[];
+    poiRules: Record<
+      "park" | "restaurant" | "bar" | "gym" | "coffee",
+      {
+        enabled: boolean;
+        requireWalk: boolean;
+        maxWalkMinutes: number;
+        requireDrive: boolean;
+        maxDriveMinutes: number;
+        enforceMinimumCount: boolean;
+        minimumCount: number;
+        countRadiusMiles: number;
+      }
+    >;
   };
   dataReliability: {
     localOnlyMode: boolean;
@@ -247,7 +257,7 @@ export interface RequirementResult {
   label: string;
   passed: boolean;
   actual?: number | string;
-  target: number;
+  target: number | string;
 }
 
 export interface PropertyScore {

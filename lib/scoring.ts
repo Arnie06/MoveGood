@@ -1,4 +1,4 @@
-import { defaultWeights } from "@/lib/constants";
+import { defaultAppSettings, defaultWeights } from "@/lib/constants";
 import {
   AmenityPOI,
   CrimeMetric,
@@ -32,6 +32,28 @@ function countWalkableRoutes(routes: RouteMetric[], type: string, maxWalkMinutes
 function average(values: number[]) {
   if (!values.length) return undefined;
   return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
+function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number) {
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const earthRadiusMiles = 3958.8;
+  const dLat = toRadians(bLat - aLat);
+  const dLng = toRadians(bLng - aLng);
+  const lat1 = toRadians(aLat);
+  const lat2 = toRadians(bLat);
+  const sinLat = Math.sin(dLat / 2);
+  const sinLng = Math.sin(dLng / 2);
+  const a = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
+  return 2 * earthRadiusMiles * Math.asin(Math.sqrt(a));
+}
+
+function toTitle(value: string) {
+  return `${value[0].toUpperCase()}${value.slice(1)}`;
+}
+
+function formatMinutesForRequirement(value?: number) {
+  if (value == null) return "N/A";
+  return `${Math.round(value)} min`;
 }
 
 export function computePropertyScore(input: {
@@ -198,52 +220,120 @@ export function computePropertyScore(input: {
   }
 
   const failedMustHaves: string[] = [];
-  const requirementResults =
-    preferences?.hardRules?.map((rule) => {
-          let actual = 0;
-          let passed = true;
+  const requirementResults: PropertyScore["requirementResults"] = [];
+  const poiMustHaveCategories = ["park", "restaurant", "bar", "gym", "coffee"] as const;
+  const poiRules = preferences?.settings?.mustHaves.poiRules ?? defaultAppSettings.mustHaves.poiRules;
 
-          switch (rule.metric) {
-            case "price-max":
-              actual = input.property.price ?? 0;
-              passed = actual <= rule.value;
-              break;
-            case "safety-min":
-              actual = safetyScore;
-              passed = actual >= rule.value;
-              break;
-            case "work-peak-max":
-              actual = maxSavedPlacePeak ?? 0;
-              passed = actual <= rule.value;
-              break;
-            case "grocery-walk-max":
-              actual = groceryWalk;
-              passed = actual <= rule.value;
-              break;
-            case "parks-count-min":
-              actual = countAmenities(input.nearbyAmenities, "park");
-              passed = actual >= rule.value;
-              break;
-            case "beds-min":
-              actual = input.property.beds ?? 0;
-              passed = actual >= rule.value;
-              break;
-            case "baths-min":
-              actual = input.property.baths ?? 0;
-              passed = actual >= rule.value;
-              break;
-          }
+  poiMustHaveCategories.forEach((category) => {
+    const rule = poiRules?.[category];
+    if (!rule?.enabled) return;
 
-          if (!passed) failedMustHaves.push(rule.label);
+    const nearestAmenityRoute = nearestRoute(input.routeMetrics, category);
+    const walkMinutes = nearestAmenityRoute?.walkingMinutes;
+    const driveMinutes = nearestAmenityRoute?.driveMinutesPeak ?? nearestAmenityRoute?.driveMinutesOffPeak;
 
-          return {
-            ruleId: rule.id,
-            label: rule.label,
-            passed,
-            actual,
-            target: rule.value
-          };
-        }) ?? [];
+    const requiresWalk = rule.requireWalk;
+    const requiresDrive = rule.requireDrive;
+
+    let proximityPassed = true;
+    let proximityTarget = "No walk/drive threshold configured";
+
+    if (requiresWalk && requiresDrive) {
+      proximityPassed =
+        (walkMinutes != null && walkMinutes <= rule.maxWalkMinutes) ||
+        (driveMinutes != null && driveMinutes <= rule.maxDriveMinutes);
+      proximityTarget = `Walk <= ${rule.maxWalkMinutes} min OR drive <= ${rule.maxDriveMinutes} min`;
+    } else if (requiresWalk) {
+      proximityPassed = walkMinutes != null && walkMinutes <= rule.maxWalkMinutes;
+      proximityTarget = `Walk <= ${rule.maxWalkMinutes} min`;
+    } else if (requiresDrive) {
+      proximityPassed = driveMinutes != null && driveMinutes <= rule.maxDriveMinutes;
+      proximityTarget = `Drive <= ${rule.maxDriveMinutes} min`;
+    }
+
+    if (requiresWalk || requiresDrive) {
+      const proximityLabel = `${toTitle(category)} nearby`;
+      if (!proximityPassed) {
+        failedMustHaves.push(proximityLabel);
+      }
+      requirementResults.push({
+        ruleId: `poi-${category}-proximity`,
+        label: proximityLabel,
+        passed: proximityPassed,
+        actual: `Walk ${formatMinutesForRequirement(walkMinutes)} • Drive ${formatMinutesForRequirement(driveMinutes)}`,
+        target: proximityTarget
+      });
+    }
+
+    if (!rule.enforceMinimumCount) return;
+
+    const countWithinRadius = input.nearbyAmenities.filter(
+      (amenity) =>
+        amenity.category === category &&
+        haversineMiles(input.property.lat, input.property.lng, amenity.lat, amenity.lng) <= rule.countRadiusMiles
+    ).length;
+
+    const countPassed = countWithinRadius >= rule.minimumCount;
+    const countLabel = `${toTitle(category)} count`;
+    if (!countPassed) failedMustHaves.push(countLabel);
+    requirementResults.push({
+      ruleId: `poi-${category}-count`,
+      label: `${toTitle(category)} count within ${rule.countRadiusMiles} mi`,
+      passed: countPassed,
+      actual: countWithinRadius,
+      target: rule.minimumCount
+    });
+  });
+
+  if (requirementResults.length === 0) {
+    const legacyResults =
+      preferences?.hardRules?.map((rule) => {
+        let actual = 0;
+        let passed = true;
+
+        switch (rule.metric) {
+          case "price-max":
+            actual = input.property.price ?? 0;
+            passed = actual <= rule.value;
+            break;
+          case "safety-min":
+            actual = safetyScore;
+            passed = actual >= rule.value;
+            break;
+          case "work-peak-max":
+            actual = maxSavedPlacePeak ?? 0;
+            passed = actual <= rule.value;
+            break;
+          case "grocery-walk-max":
+            actual = groceryWalk;
+            passed = actual <= rule.value;
+            break;
+          case "parks-count-min":
+            actual = countAmenities(input.nearbyAmenities, "park");
+            passed = actual >= rule.value;
+            break;
+          case "beds-min":
+            actual = input.property.beds ?? 0;
+            passed = actual >= rule.value;
+            break;
+          case "baths-min":
+            actual = input.property.baths ?? 0;
+            passed = actual >= rule.value;
+            break;
+        }
+
+        if (!passed) failedMustHaves.push(rule.label);
+
+        return {
+          ruleId: rule.id,
+          label: rule.label,
+          passed,
+          actual,
+          target: rule.value
+        };
+      }) ?? [];
+    requirementResults.push(...legacyResults);
+  }
 
   return {
     propertyId: input.property.id,

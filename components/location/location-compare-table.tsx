@@ -30,7 +30,6 @@ type CompareRow =
         | "walkScore"
         | "driveScore"
         | "affordabilityScore"
-        | "homeFitScore"
       >;
     }
   | {
@@ -67,9 +66,7 @@ const scoreRows: CompareRow[] = [
   { key: "accessibility", label: "Accessibility", section: "Scores", type: "score", scoreKey: "accessibilityScore" },
   { key: "lifestyle", label: "Lifestyle", section: "Scores", type: "score", scoreKey: "lifestyleScore" },
   { key: "walk", label: "Walk", section: "Scores", type: "score", scoreKey: "walkScore" },
-  { key: "drive", label: "Drive", section: "Scores", type: "score", scoreKey: "driveScore" },
-  { key: "affordability", label: "Affordability", section: "Scores", type: "score", scoreKey: "affordabilityScore" },
-  { key: "homeFit", label: "Home fit", section: "Scores", type: "score", scoreKey: "homeFitScore" }
+  { key: "drive", label: "Drive", section: "Scores", type: "score", scoreKey: "driveScore" }
 ];
 
 const nearbyRows: CompareRow[] = [

@@ -1,6 +1,6 @@
-# Good Area
+# MoveGood
 
-Good Area is a production-minded MVP web app for answering one core question quickly and transparently:
+MoveGood is a production-minded MVP web app for answering one core question quickly and transparently:
 
 Is this housing option in a good area for me?
 
@@ -127,7 +127,7 @@ The MVP scoring engine computes:
 - Lifestyle Score
 - Affordability / Value Score
 - Home Fit Score
-- Overall Good Area Score
+- Overall MoveGood Score
 
 ### Default weights
 

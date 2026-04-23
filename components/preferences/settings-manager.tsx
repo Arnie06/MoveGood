@@ -9,6 +9,7 @@ import { defaultAppSettings } from "@/lib/constants";
 import { AmenityCategory, ScoreWeights } from "@/lib/types/domain";
 
 const poiCategories: AmenityCategory[] = ["grocery", "gym", "park", "restaurant", "coffee", "bar"];
+const mustHavePoiCategories = ["park", "restaurant", "bar", "gym", "coffee"] as const;
 
 function toNumber(value: string, fallback: number) {
   const parsed = Number(value);
@@ -294,40 +295,196 @@ export function SettingsManager() {
       </SettingsAccordionSection>
 
       <SettingsAccordionSection title="Must-Haves">
-        <div className="grid gap-4 md:grid-cols-3">
-          <label className="space-y-1">
-            <SettingLabel label="Preset" tip="Applies a predefined must-have template (starter/family/commuter/nightlife) to quickly reconfigure hard constraints and priorities." />
-            <select className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm" value={settings.mustHaves.preset} onChange={(event) => updateSettings({ mustHaves: { ...settings.mustHaves, preset: event.target.value as "starter" | "family" | "commuter" | "nightlife" | "custom" } })}>
-              <option value="custom">Custom</option>
-              <option value="starter">Starter</option>
-              <option value="family">Family</option>
-              <option value="commuter">Commuter</option>
-              <option value="nightlife">Nightlife</option>
-            </select>
-          </label>
-          <label className="mt-7 flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" checked={settings.mustHaves.failFast} onChange={(event) => updateSettings({ mustHaves: { ...settings.mustHaves, failFast: event.target.checked } })} />
-            Fail-fast
-            <HelpTip text="When enabled, any failed must-have immediately marks the location as failing must-haves. When disabled, you can still review partial passes." />
-          </label>
-        </div>
-        <div className="mt-4">
-          <SettingLabel label="Required saved places" tip="Selected places become mandatory commute checks; if a location has missing or poor routing for them, it is penalized or can fail must-haves." className="mb-2" />
-          <div className="grid gap-2 md:grid-cols-2">
-            {preferences.savedPlaces.length === 0 ? (
-              <div className="text-sm text-gray-500">Add places in My Places to mark required ones here.</div>
-            ) : preferences.savedPlaces.map((place) => (
-              <label key={place.id} className="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" checked={settings.mustHaves.requiredSavedPlaceIds.includes(place.id)} onChange={(event) => {
-                  const nextIds = event.target.checked
-                    ? [...settings.mustHaves.requiredSavedPlaceIds, place.id]
-                    : settings.mustHaves.requiredSavedPlaceIds.filter((id) => id !== place.id);
-                  updateSettings({ mustHaves: { ...settings.mustHaves, requiredSavedPlaceIds: Array.from(new Set(nextIds)) } });
-                }} />
-                {place.label}
-              </label>
-            ))}
-          </div>
+        <p className="mb-4 text-sm text-gray-600">
+          Configure what must be nearby for each POI. For time checks, enable walk, drive, or both.
+        </p>
+        <div className="space-y-4">
+          {mustHavePoiCategories.map((category) => {
+            const rule = settings.mustHaves.poiRules[category];
+            return (
+              <div key={category} className="rounded-2xl border border-black/10 bg-black/[0.02] p-4">
+                <div className="grid gap-3 md:grid-cols-4">
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={rule.enabled}
+                      onChange={(event) =>
+                        updateSettings({
+                          mustHaves: {
+                            ...settings.mustHaves,
+                            poiRules: {
+                              ...settings.mustHaves.poiRules,
+                              [category]: {
+                                ...rule,
+                                enabled: event.target.checked
+                              }
+                            }
+                          }
+                        })
+                      }
+                    />
+                    <span className="font-semibold text-ink">Enable {category}</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={rule.requireWalk}
+                      onChange={(event) =>
+                        updateSettings({
+                          mustHaves: {
+                            ...settings.mustHaves,
+                            poiRules: {
+                              ...settings.mustHaves.poiRules,
+                              [category]: {
+                                ...rule,
+                                requireWalk: event.target.checked
+                              }
+                            }
+                          }
+                        })
+                      }
+                    />
+                    Require walk
+                  </label>
+                  <label className="space-y-1">
+                    <SettingLabel label="Max walk (min)" tip="Maximum acceptable walk time to the nearest matching POI." />
+                    <Input
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={rule.maxWalkMinutes}
+                      onChange={(event) =>
+                        updateSettings({
+                          mustHaves: {
+                            ...settings.mustHaves,
+                            poiRules: {
+                              ...settings.mustHaves.poiRules,
+                              [category]: {
+                                ...rule,
+                                maxWalkMinutes: toNumber(event.target.value, rule.maxWalkMinutes)
+                              }
+                            }
+                          }
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={rule.requireDrive}
+                      onChange={(event) =>
+                        updateSettings({
+                          mustHaves: {
+                            ...settings.mustHaves,
+                            poiRules: {
+                              ...settings.mustHaves.poiRules,
+                              [category]: {
+                                ...rule,
+                                requireDrive: event.target.checked
+                              }
+                            }
+                          }
+                        })
+                      }
+                    />
+                    Require drive
+                  </label>
+                  <label className="space-y-1">
+                    <SettingLabel label="Max drive (min)" tip="Maximum acceptable drive time to the nearest matching POI." />
+                    <Input
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={rule.maxDriveMinutes}
+                      onChange={(event) =>
+                        updateSettings({
+                          mustHaves: {
+                            ...settings.mustHaves,
+                            poiRules: {
+                              ...settings.mustHaves.poiRules,
+                              [category]: {
+                                ...rule,
+                                maxDriveMinutes: toNumber(event.target.value, rule.maxDriveMinutes)
+                              }
+                            }
+                          }
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={rule.enforceMinimumCount}
+                      onChange={(event) =>
+                        updateSettings({
+                          mustHaves: {
+                            ...settings.mustHaves,
+                            poiRules: {
+                              ...settings.mustHaves.poiRules,
+                              [category]: {
+                                ...rule,
+                                enforceMinimumCount: event.target.checked
+                              }
+                            }
+                          }
+                        })
+                      }
+                    />
+                    Require count in radius
+                  </label>
+                  <label className="space-y-1">
+                    <SettingLabel label="Minimum count" tip="How many of this POI type must be within the radius." />
+                    <Input
+                      type="number"
+                      min={0}
+                      max={20}
+                      value={rule.minimumCount}
+                      onChange={(event) =>
+                        updateSettings({
+                          mustHaves: {
+                            ...settings.mustHaves,
+                            poiRules: {
+                              ...settings.mustHaves.poiRules,
+                              [category]: {
+                                ...rule,
+                                minimumCount: toNumber(event.target.value, rule.minimumCount)
+                              }
+                            }
+                          }
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <SettingLabel label="Radius (mi)" tip="Search radius used for the count requirement." />
+                    <Input
+                      type="number"
+                      min={0.1}
+                      max={10}
+                      step="0.1"
+                      value={rule.countRadiusMiles}
+                      onChange={(event) =>
+                        updateSettings({
+                          mustHaves: {
+                            ...settings.mustHaves,
+                            poiRules: {
+                              ...settings.mustHaves.poiRules,
+                              [category]: {
+                                ...rule,
+                                countRadiusMiles: toNumber(event.target.value, rule.countRadiusMiles)
+                              }
+                            }
+                          }
+                        })
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </SettingsAccordionSection>
 

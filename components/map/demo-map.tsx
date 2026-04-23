@@ -1110,11 +1110,6 @@ export function DemoMap({
         <div ref={mapContainerRef} className="h-full w-full" />
         <div className="absolute bottom-4 left-4 max-w-[300px] rounded-2xl bg-white/92 px-4 py-3 text-xs text-gray-600 shadow">
           <div>
-            {getMapStyleUrl()
-              ? "Live map tiles are active."
-              : "Fallback OpenStreetMap tiles are active. Add NEXT_PUBLIC_GEOAPIFY_KEY for a richer hosted style."}
-          </div>
-          <div className="mt-1">
             Pan or zoom the map to browse the current area. POIs and crime update automatically for the visible bounds.
           </div>
           {isViewportLoading ? (

@@ -11,7 +11,11 @@ export function RequirementsPanel({ score }: { score: LocationScore }) {
         <h3 className="font-display text-2xl text-ink">Passes and misses</h3>
       </div>
       <div className="space-y-3">
-        {score.requirementResults.map((result) => (
+        {score.requirementResults.length === 0 ? (
+          <div className="rounded-2xl border border-black/10 bg-black/[0.02] p-4 text-sm text-gray-600">
+            No must-haves configured yet. Open Settings to define walk/drive and count requirements.
+          </div>
+        ) : score.requirementResults.map((result) => (
           <div
             key={result.ruleId}
             className={`rounded-2xl border p-4 ${
@@ -22,8 +26,7 @@ export function RequirementsPanel({ score }: { score: LocationScore }) {
           >
             <div className="font-medium text-ink">{result.label}</div>
             <div className="text-sm text-gray-600">
-              {result.passed ? "Pass" : "Miss"} • actual {String(result.actual)} • target{" "}
-              {result.target}
+              {result.passed ? "Pass" : "Miss"} • observed {String(result.actual)} • requirement {String(result.target)}
             </div>
           </div>
         ))}

@@ -31,6 +31,61 @@ function buildBaseProperty(overrides: Partial<Property> = {}): Property {
   };
 }
 
+function disabledPoiMustHaves() {
+  return {
+    park: {
+      enabled: false,
+      requireWalk: true,
+      maxWalkMinutes: 15,
+      requireDrive: true,
+      maxDriveMinutes: 8,
+      enforceMinimumCount: false,
+      minimumCount: 0,
+      countRadiusMiles: 1
+    },
+    restaurant: {
+      enabled: false,
+      requireWalk: true,
+      maxWalkMinutes: 15,
+      requireDrive: true,
+      maxDriveMinutes: 8,
+      enforceMinimumCount: false,
+      minimumCount: 0,
+      countRadiusMiles: 1.5
+    },
+    bar: {
+      enabled: false,
+      requireWalk: true,
+      maxWalkMinutes: 18,
+      requireDrive: true,
+      maxDriveMinutes: 10,
+      enforceMinimumCount: false,
+      minimumCount: 0,
+      countRadiusMiles: 1.5
+    },
+    gym: {
+      enabled: false,
+      requireWalk: true,
+      maxWalkMinutes: 20,
+      requireDrive: true,
+      maxDriveMinutes: 10,
+      enforceMinimumCount: false,
+      minimumCount: 0,
+      countRadiusMiles: 2
+    },
+    coffee: {
+      enabled: false,
+      requireWalk: true,
+      maxWalkMinutes: 12,
+      requireDrive: true,
+      maxDriveMinutes: 8,
+      enforceMinimumCount: false,
+      minimumCount: 0,
+      countRadiusMiles: 1
+    }
+  } as const;
+}
+
 describe("computePropertyScore", () => {
   it("computes stable score outputs for a well-populated input", () => {
     const property = buildBaseProperty();
@@ -105,6 +160,13 @@ describe("computePropertyScore", () => {
     ];
     const preferences: UserPreferences = {
       ...defaultPreferences,
+      settings: {
+        ...defaultPreferences.settings!,
+        mustHaves: {
+          ...defaultPreferences.settings!.mustHaves,
+          poiRules: disabledPoiMustHaves()
+        }
+      },
       savedPlaces: [
         {
           id: "work",
@@ -161,6 +223,13 @@ describe("computePropertyScore", () => {
     });
     const preferences: UserPreferences = {
       ...defaultPreferences,
+      settings: {
+        ...defaultPreferences.settings!,
+        mustHaves: {
+          ...defaultPreferences.settings!.mustHaves,
+          poiRules: disabledPoiMustHaves()
+        }
+      },
       savedPlaces: [
         {
           id: "work",
@@ -197,5 +266,55 @@ describe("computePropertyScore", () => {
       "Square footage is missing and home fit is estimated",
       "Some saved places could not be routed, so personal-place scoring is partial"
     ]);
+  });
+
+  it("evaluates POI must-haves for proximity and count requirements", () => {
+    const property = buildBaseProperty({ id: "prop-3" });
+    const nearbyAmenities: AmenityPOI[] = [
+      { id: "park-1", name: "Park 1", category: "park", lat: 34.011, lng: -118.251, address: "x" },
+      { id: "park-2", name: "Park 2", category: "park", lat: 34.013, lng: -118.252, address: "x" },
+      { id: "coffee-1", name: "Coffee 1", category: "coffee", lat: 34.0105, lng: -118.251, address: "x" },
+      { id: "coffee-2", name: "Coffee 2", category: "coffee", lat: 34.012, lng: -118.252, address: "x" },
+      { id: "coffee-3", name: "Coffee 3", category: "coffee", lat: 34.013, lng: -118.253, address: "x" }
+    ];
+    const routeMetrics: RouteMetric[] = [
+      {
+        id: "route-park",
+        propertyId: property.id,
+        destinationType: "park",
+        destinationId: "park-1",
+        destinationLabel: "Park 1",
+        walkingMinutes: 9,
+        driveMinutesOffPeak: 4,
+        driveMinutesPeak: 6,
+        sourceName: "test-route",
+        updatedAt: now
+      },
+      {
+        id: "route-coffee",
+        propertyId: property.id,
+        destinationType: "coffee",
+        destinationId: "coffee-1",
+        destinationLabel: "Coffee 1",
+        walkingMinutes: 7,
+        driveMinutesOffPeak: 3,
+        driveMinutesPeak: 4,
+        sourceName: "test-route",
+        updatedAt: now
+      }
+    ];
+
+    const score = computePropertyScore({
+      property,
+      crimeMetrics: [],
+      nearbyAmenities,
+      routeMetrics,
+      preferences: defaultPreferences
+    });
+
+    expect(score.requirementResults.some((result) => result.ruleId === "poi-park-proximity")).toBe(true);
+    expect(score.requirementResults.some((result) => result.ruleId === "poi-coffee-count")).toBe(true);
+    expect(score.failedMustHaves).toContain("Bar nearby");
+    expect(score.failedMustHaves).toContain("Gym nearby");
   });
 });

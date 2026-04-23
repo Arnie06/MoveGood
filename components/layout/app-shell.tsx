@@ -8,10 +8,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-ocean text-sm font-bold text-white">
-              GA
+              MG
             </div>
             <div>
-              <div className="font-display text-2xl text-ink">Good Area</div>
+              <div className="font-display text-2xl text-ink">MoveGood</div>
               <div className="text-xs text-gray-500">
                 Personal location intelligence
               </div>

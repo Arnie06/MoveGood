@@ -38,9 +38,58 @@ export const defaultAppSettings: AppSettings = {
     }
   },
   mustHaves: {
-    preset: "custom",
-    failFast: false,
-    requiredSavedPlaceIds: []
+    poiRules: {
+      park: {
+        enabled: true,
+        requireWalk: true,
+        maxWalkMinutes: 15,
+        requireDrive: true,
+        maxDriveMinutes: 8,
+        enforceMinimumCount: true,
+        minimumCount: 2,
+        countRadiusMiles: 1
+      },
+      restaurant: {
+        enabled: true,
+        requireWalk: true,
+        maxWalkMinutes: 15,
+        requireDrive: true,
+        maxDriveMinutes: 8,
+        enforceMinimumCount: true,
+        minimumCount: 4,
+        countRadiusMiles: 1.5
+      },
+      bar: {
+        enabled: true,
+        requireWalk: true,
+        maxWalkMinutes: 18,
+        requireDrive: true,
+        maxDriveMinutes: 10,
+        enforceMinimumCount: true,
+        minimumCount: 2,
+        countRadiusMiles: 1.5
+      },
+      gym: {
+        enabled: true,
+        requireWalk: true,
+        maxWalkMinutes: 20,
+        requireDrive: true,
+        maxDriveMinutes: 10,
+        enforceMinimumCount: true,
+        minimumCount: 2,
+        countRadiusMiles: 2
+      },
+      coffee: {
+        enabled: true,
+        requireWalk: true,
+        maxWalkMinutes: 12,
+        requireDrive: true,
+        maxDriveMinutes: 8,
+        enforceMinimumCount: true,
+        minimumCount: 3,
+        countRadiusMiles: 1
+      }
+    }
   },
   dataReliability: {
     localOnlyMode: false,

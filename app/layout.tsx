@@ -7,7 +7,7 @@ import { LocationStoreProvider } from "@/components/providers/location-store-pro
 import { PreferencesProvider } from "@/components/providers/preferences-provider";
 
 export const metadata: Metadata = {
-  title: "Good Area",
+  title: "MoveGood",
   description: "Analyze any address or point on the map, understand what is nearby, and compare saved locations with explainable proximity scores."
 };
 

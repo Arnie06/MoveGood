@@ -47,7 +47,12 @@ export function parseStoredPreferences(value?: string | null): UserPreferences {
         },
         mustHaves: {
           ...defaultAppSettings.mustHaves,
-          ...(parsed.settings?.mustHaves ?? {})
+          ...(parsed.settings?.mustHaves ?? {}),
+          poiRules: {
+            ...defaultAppSettings.mustHaves.poiRules,
+            ...(parsed.settings?.mustHaves as { poiRules?: typeof defaultAppSettings.mustHaves.poiRules } | undefined)
+              ?.poiRules
+          }
         },
         dataReliability: {
           ...defaultAppSettings.dataReliability,
