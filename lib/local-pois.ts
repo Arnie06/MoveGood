@@ -1,11 +1,16 @@
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { AmenityCategory, AmenityPOI } from "@/lib/types/domain";
 
 const LOCAL_POI_DATA_PATH = path.join(process.cwd(), "data", "pois", "los-angeles.json");
 
-let localPoisPromise: Promise<AmenityPOI[]> | null = null;
+let localPoisCache:
+  | {
+      mtimeMs: number;
+      promise: Promise<AmenityPOI[]>;
+    }
+  | null = null;
 
 function isAmenityCategory(value: string): value is AmenityCategory {
   return [
@@ -51,11 +56,22 @@ async function loadLocalPois() {
 }
 
 export async function readLocalPois() {
-  if (!localPoisPromise) {
-    localPoisPromise = loadLocalPois();
-  }
+  try {
+    const fileStats = await stat(LOCAL_POI_DATA_PATH);
+    const mtimeMs = fileStats.mtimeMs;
 
-  return localPoisPromise;
+    if (!localPoisCache || localPoisCache.mtimeMs !== mtimeMs) {
+      localPoisCache = {
+        mtimeMs,
+        promise: loadLocalPois()
+      };
+    }
+
+    return localPoisCache.promise;
+  } catch {
+    localPoisCache = null;
+    return [];
+  }
 }
 
 export async function getLocalPoisInBounds(input: {
