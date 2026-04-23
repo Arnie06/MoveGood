@@ -356,6 +356,52 @@ export async function reverseGeocodeLocalAddress(input: { lat: number; lng: numb
   return toGeocodedLocation(nearest.record);
 }
 
+export async function getLocalAddressesInBounds(input: {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+  limit?: number;
+}) {
+  const manifest = await readLocalAddressManifest();
+  if (!manifest) return [];
+
+  const minLatBucket = Math.floor(input.south / manifest.reverseCellSize);
+  const maxLatBucket = Math.floor(input.north / manifest.reverseCellSize);
+  const minLngBucket = Math.floor(input.west / manifest.reverseCellSize);
+  const maxLngBucket = Math.floor(input.east / manifest.reverseCellSize);
+  const candidates = new Map<string, LocalAddressRecord>();
+
+  for (let latBucket = minLatBucket; latBucket <= maxLatBucket; latBucket += 1) {
+    for (let lngBucket = minLngBucket; lngBucket <= maxLngBucket; lngBucket += 1) {
+      const shard = await getReverseShard(`${latBucket}_${lngBucket}`);
+      for (const record of shard) {
+        if (
+          record.lng >= input.west &&
+          record.lng <= input.east &&
+          record.lat >= input.south &&
+          record.lat <= input.north
+        ) {
+          candidates.set(record.id, record);
+        }
+      }
+    }
+  }
+
+  const sorted = Array.from(candidates.values()).sort((a, b) =>
+    a.canonicalAddress.localeCompare(b.canonicalAddress)
+  );
+  return sorted.slice(0, input.limit ?? 500).map((record) => ({
+    id: record.id,
+    canonicalAddress: record.canonicalAddress,
+    lat: record.lat,
+    lng: record.lng,
+    city: record.city,
+    state: record.state,
+    zipCode: record.zipCode
+  }));
+}
+
 export function getLocalAddressDatasetPaths() {
   return {
     datasetDir: ADDRESS_DATASET_DIR,

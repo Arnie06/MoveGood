@@ -6,8 +6,10 @@ import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import maplibregl, { GeoJSONSource, LngLatBounds } from "maplibre-gl";
 
+import { usePreferences } from "@/components/providers/preferences-provider";
 import { getMapStyleUrl } from "@/lib/env";
 import { buildFallbackMapStyle } from "@/lib/map-style";
+import { defaultAppSettings } from "@/lib/constants";
 import {
   getAverageSavedPlacePeak,
   getNearestRouteByType,
@@ -81,6 +83,16 @@ type BrowseHighlight = {
   label?: string;
 };
 
+type MapAddress = {
+  id: string;
+  canonicalAddress: string;
+  lat: number;
+  lng: number;
+  city: string;
+  state: string;
+  zipCode: string;
+};
+
 const crimeDateFilterConfig: Array<{ key: CrimeDateFilter; label: string; days?: number }> = [
   { key: "30d", label: "30D", days: 30 },
   { key: "90d", label: "90D", days: 90 },
@@ -120,6 +132,12 @@ function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number) 
     Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
 
   return 2 * earthRadiusMiles * Math.asin(Math.sqrt(a));
+}
+
+function estimateTravelTimesFromDistance(distanceMiles: number) {
+  const driveMinutes = Math.max(2, Math.round(distanceMiles * 4.5));
+  const walkMinutes = Math.max(4, Math.round(distanceMiles * 20));
+  return { walkMinutes, driveMinutes };
 }
 
 function intersectsLosAngelesBounds(bounds?: ViewBounds | null) {
@@ -309,6 +327,7 @@ export function DemoMap({
   topContent?: ReactNode;
   showSummaryPanel?: boolean;
 }) {
+  const { preferences } = usePreferences();
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const viewportRequestRef = useRef(0);
@@ -317,6 +336,7 @@ export function DemoMap({
   const propertyMarkerRefs = useRef<maplibregl.Marker[]>([]);
   const searchMarkerRef = useRef<maplibregl.Marker | null>(null);
   const overlayMarkerRefs = useRef<maplibregl.Marker[]>([]);
+  const mustHaveMatchMarkerRefs = useRef<maplibregl.Marker[]>([]);
   const hoverPopupRef = useRef<maplibregl.Popup | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
   const [activeId, setActiveId] = useState<string | undefined>(selectedId ?? items[0]?.property.id);
@@ -336,6 +356,8 @@ export function DemoMap({
   const [showPoiOverlays, setShowPoiOverlays] = useState(true);
   const [showCrimeOverlay, setShowCrimeOverlay] = useState(false);
   const [isViewportLoading, setIsViewportLoading] = useState(false);
+  const [viewportAddresses, setViewportAddresses] = useState<MapAddress[]>([]);
+  const [showMustHaveMatches, setShowMustHaveMatches] = useState(false);
   const [activeCrimeIncident, setActiveCrimeIncident] = useState<CrimeIncident | null>(null);
   const [crimeDateFilter, setCrimeDateFilter] = useState<CrimeDateFilter>("2y");
   const [crimeCategoryFilter, setCrimeCategoryFilter] = useState<Record<CrimeIncidentCategory, boolean>>({
@@ -461,6 +483,54 @@ export function DemoMap({
     crimeDateFilter,
     nowTimestamp
   ]);
+  const mustHavePoiRules = preferences.settings?.mustHaves.poiRules ?? defaultAppSettings.mustHaves.poiRules;
+
+  const mustHaveMatchedAddresses = useMemo(() => {
+    if (!showMustHaveMatches || viewportAddresses.length === 0) return [];
+
+    const categories = ["park", "restaurant", "bar", "gym", "coffee"] as const;
+    const enabledCategories = categories.filter((category) => mustHavePoiRules[category].enabled);
+    if (enabledCategories.length === 0) return [];
+
+    return viewportAddresses.filter((address) => {
+      return enabledCategories.every((category) => {
+        const rule = mustHavePoiRules[category];
+        const categoryAmenities = visibleMapAmenities.filter((amenity) => amenity.category === category);
+
+        if ((rule.requireWalk || rule.requireDrive) && categoryAmenities.length === 0) {
+          return false;
+        }
+
+        let hasTimeMatch = true;
+        if (rule.requireWalk || rule.requireDrive) {
+          const nearestDistance = categoryAmenities.reduce((best, amenity) => {
+            const distance = haversineMiles(address.lat, address.lng, amenity.lat, amenity.lng);
+            return Math.min(best, distance);
+          }, Number.POSITIVE_INFINITY);
+
+          const { walkMinutes, driveMinutes } = estimateTravelTimesFromDistance(nearestDistance);
+
+          if (rule.requireWalk && rule.requireDrive) {
+            hasTimeMatch = walkMinutes <= rule.maxWalkMinutes || driveMinutes <= rule.maxDriveMinutes;
+          } else if (rule.requireWalk) {
+            hasTimeMatch = walkMinutes <= rule.maxWalkMinutes;
+          } else if (rule.requireDrive) {
+            hasTimeMatch = driveMinutes <= rule.maxDriveMinutes;
+          }
+        }
+
+        if (!hasTimeMatch) return false;
+        if (!rule.enforceMinimumCount) return true;
+
+        const countWithinRadius = categoryAmenities.filter(
+          (amenity) =>
+            haversineMiles(address.lat, address.lng, amenity.lat, amenity.lng) <= rule.countRadiusMiles
+        ).length;
+
+        return countWithinRadius >= rule.minimumCount;
+      });
+    });
+  }, [mustHavePoiRules, showMustHaveMatches, viewportAddresses, visibleMapAmenities]);
 
   const overlayCounts = useMemo(() => {
     return {
@@ -473,6 +543,13 @@ export function DemoMap({
       bar: visibleMapAmenities.filter((amenity) => amenity.category === "bar").length
     } satisfies Record<OverlayKey, number>;
   }, [visibleMapCrimeIncidents.length, visibleMapAmenities]);
+  const enabledMustHaveCategories = useMemo(
+    () =>
+      (["park", "restaurant", "bar", "gym", "coffee"] as const).filter(
+        (category) => mustHavePoiRules[category].enabled
+      ),
+    [mustHavePoiRules]
+  );
 
   const browseVisibleAmenities = useMemo(
     () =>
@@ -524,9 +601,11 @@ export function DemoMap({
       propertyMarkerRefs.current.forEach((marker) => marker.remove());
       searchMarkerRef.current?.remove();
       overlayMarkerRefs.current.forEach((marker) => marker.remove());
+      mustHaveMatchMarkerRefs.current.forEach((marker) => marker.remove());
       propertyMarkerRefs.current = [];
       searchMarkerRef.current = null;
       overlayMarkerRefs.current = [];
+      mustHaveMatchMarkerRefs.current = [];
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -681,6 +760,7 @@ export function DemoMap({
           setIsViewportLoading(false);
           setViewportAmenities([]);
           setViewportCrimeIncidents([]);
+          setViewportAddresses([]);
         }
         return;
       }
@@ -694,24 +774,33 @@ export function DemoMap({
         north: String(nextBounds.north),
         categories: "grocery,gym,park,restaurant,coffee,bar"
       });
-      const [poiResponse, crimeResponse] = await Promise.all([
+      const requests: Array<Promise<Response>> = [
         fetch(`/api/map-pois?${params.toString()}`),
         fetch(`/api/map-crime?${params.toString()}`)
-      ]);
-      if (!poiResponse.ok || !crimeResponse.ok) {
+      ];
+      if (showMustHaveMatches) {
+        requests.push(fetch(`/api/map-addresses?${params.toString()}&limit=500`));
+      }
+
+      const [poiResponse, crimeResponse, addressResponse] = await Promise.all(requests);
+      if (!poiResponse.ok || !crimeResponse.ok || (showMustHaveMatches && !addressResponse?.ok)) {
         if (!isCancelled && requestId === viewportRequestRef.current) {
           setIsViewportLoading(false);
         }
         return;
       }
 
-      const [poiPayload, crimePayload] = await Promise.all([
+      const [poiPayload, crimePayload, addressPayload] = await Promise.all([
         poiResponse.json() as Promise<{ amenities?: AmenityPOI[] }>,
-        crimeResponse.json() as Promise<{ incidents?: CrimeIncident[] }>
+        crimeResponse.json() as Promise<{ incidents?: CrimeIncident[] }>,
+        showMustHaveMatches
+          ? (addressResponse as Response).json() as Promise<{ addresses?: MapAddress[] }>
+          : Promise.resolve({ addresses: [] })
       ]);
       if (!isCancelled && requestId === viewportRequestRef.current) {
         setViewportAmenities(poiPayload.amenities ?? []);
         setViewportCrimeIncidents(crimePayload.incidents ?? []);
+        setViewportAddresses(addressPayload.addresses ?? []);
         setIsViewportLoading(false);
       }
     };
@@ -741,7 +830,8 @@ export function DemoMap({
     hasMapFocus,
     hasMounted,
     items.length,
-    searchedLocation?.canonicalAddress
+    searchedLocation?.canonicalAddress,
+    showMustHaveMatches
   ]);
 
   useEffect(() => {
@@ -952,6 +1042,77 @@ export function DemoMap({
     visibleOverlays
   ]);
 
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    mustHaveMatchMarkerRefs.current.forEach((marker) => marker.remove());
+    mustHaveMatchMarkerRefs.current = [];
+
+    if (!showMustHaveMatches || mustHaveMatchedAddresses.length === 0) return;
+
+    const activeMap = mapRef.current;
+    mustHaveMatchedAddresses.forEach((address) => {
+      const element = makeMarkerElement({
+        label: "M",
+        bg: "#e6f6ef",
+        border: "#1f7a58",
+        text: "#14533c",
+        compact: true
+      });
+      element.dataset.mapMarker = "true";
+      element.dataset.markerKind = "must-have-match";
+      element.style.width = "20px";
+      element.style.height = "20px";
+      element.style.minWidth = "20px";
+      element.style.boxShadow = "0 0 0 3px rgba(31, 122, 88, 0.18)";
+
+      element.onmouseenter = () => {
+        element.style.filter = "brightness(0.97)";
+        element.style.boxShadow = "0 0 0 4px rgba(31, 122, 88, 0.26)";
+        hoverPopupRef.current?.remove();
+        hoverPopupRef.current = new maplibregl.Popup({
+          offset: 12,
+          closeButton: false,
+          closeOnClick: false,
+          className: "pointer-events-none"
+        })
+          .setLngLat([address.lng, address.lat])
+          .setDOMContent(
+            createPopupNode("Must-Have Match", [
+              address.canonicalAddress,
+              "Matches current nearby amenity requirements"
+            ])
+          )
+          .addTo(activeMap);
+      };
+
+      element.onmouseleave = () => {
+        element.style.filter = "";
+        element.style.boxShadow = "0 0 0 3px rgba(31, 122, 88, 0.18)";
+        hoverPopupRef.current?.remove();
+        hoverPopupRef.current = null;
+      };
+
+      if (browseMode && onLocationSelect) {
+        element.onclick = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onLocationSelect({
+            label: "Must-Have Match",
+            address: address.canonicalAddress,
+            lat: address.lat,
+            lng: address.lng
+          });
+        };
+      }
+
+      const marker = new maplibregl.Marker({ element, anchor: "center" })
+        .setLngLat([address.lng, address.lat])
+        .addTo(activeMap);
+      mustHaveMatchMarkerRefs.current.push(marker);
+    });
+  }, [browseMode, mustHaveMatchedAddresses, onLocationSelect, showMustHaveMatches]);
+
   if (!hasMapFocus) {
     return (
       <div className="flex h-[480px] items-center justify-center rounded-[32px] border border-dashed border-black/15 bg-white/60 p-8 text-center text-sm text-gray-500">
@@ -1012,6 +1173,21 @@ export function DemoMap({
             {showCrimeOverlay ? "On" : "Off"}
           </span>
         </button>
+        <button
+          type="button"
+          onClick={() => setShowMustHaveMatches((current) => !current)}
+          className={cn(
+            "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
+            showMustHaveMatches
+              ? "border-moss/20 bg-moss/10 text-moss"
+              : "border-black/10 bg-white text-gray-600"
+          )}
+        >
+          <span>Must-Have Matches</span>
+          <span className="rounded-full bg-current/10 px-2 py-0.5 text-[11px]">
+            {showMustHaveMatches ? formatCompactNumber(mustHaveMatchedAddresses.length) : "Off"}
+          </span>
+        </button>
         {overlayConfig
           .filter(
             (
@@ -1060,6 +1236,18 @@ export function DemoMap({
               </button>
             );
           })}
+        {showMustHaveMatches && enabledMustHaveCategories.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {enabledMustHaveCategories.map((category) => (
+              <span
+                key={category}
+                className="rounded-full border border-moss/20 bg-moss/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-moss"
+              >
+                {category}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
       {showCrimeOverlay ? (
         <div className="flex flex-wrap items-center gap-2 border-b border-black/5 bg-white/70 px-4 py-3">
@@ -1112,6 +1300,16 @@ export function DemoMap({
           <div>
             Pan or zoom the map to browse the current area. POIs and crime update automatically for the visible bounds.
           </div>
+          {showMustHaveMatches ? (
+            <div className="mt-2 rounded-xl bg-moss/10 px-2.5 py-2 text-[11px] text-moss">
+              <div className="font-semibold uppercase tracking-[0.14em]">Must-Have Matches</div>
+              <div className="mt-1">
+                {formatCompactNumber(mustHaveMatchedAddresses.length)} of{" "}
+                {formatCompactNumber(viewportAddresses.length)} residential addresses in view currently match your
+                enabled must-haves.
+              </div>
+            </div>
+          ) : null}
           {isViewportLoading ? (
             <div className="mt-2 text-[11px] font-semibold text-ocean">
               Refreshing nearby POIs and crime for this view…
