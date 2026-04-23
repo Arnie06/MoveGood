@@ -79,7 +79,8 @@ export function computePropertyScore(input: {
   const includedSavedPlaces =
     preferences?.savedPlaces.filter((place) => place.includeInScoring) ?? [];
   const savedPlaceIds = new Set(includedSavedPlaces.map((place) => place.id));
-  const savedPlaceRoutes = getSavedPlaceRoutes(input.routeMetrics).filter(
+  const allSavedPlaceRoutes = getSavedPlaceRoutes(input.routeMetrics);
+  const savedPlaceRoutes = allSavedPlaceRoutes.filter(
     (route) =>
       (savedPlaceIds.size === 0 || savedPlaceIds.has(route.destinationId))
   );
@@ -223,6 +224,8 @@ export function computePropertyScore(input: {
   const requirementResults: PropertyScore["requirementResults"] = [];
   const poiMustHaveCategories = ["park", "restaurant", "bar", "gym", "coffee"] as const;
   const poiRules = preferences?.settings?.mustHaves.poiRules ?? defaultAppSettings.mustHaves.poiRules;
+  const personalPlaceRules =
+    preferences?.settings?.mustHaves.personalPlaces ?? defaultAppSettings.mustHaves.personalPlaces;
 
   poiMustHaveCategories.forEach((category) => {
     const rule = poiRules?.[category];
@@ -284,6 +287,43 @@ export function computePropertyScore(input: {
       target: rule.minimumCount
     });
   });
+
+  if (personalPlaceRules.enabled && (personalPlaceRules.requireWalk || personalPlaceRules.requireDrive)) {
+    const targetPlaces = (preferences?.savedPlaces ?? []).filter(
+      (place) => !personalPlaceRules.onlyIncludedInScoring || place.includeInScoring
+    );
+
+    targetPlaces.forEach((place) => {
+      const route = allSavedPlaceRoutes.find((item) => item.destinationId === place.id);
+      const walkMinutes = route?.walkingMinutes;
+      const driveMinutes = route?.driveMinutesPeak ?? route?.driveMinutesOffPeak;
+
+      let passed = true;
+      let target = "No threshold configured";
+      if (personalPlaceRules.requireWalk && personalPlaceRules.requireDrive) {
+        passed =
+          (walkMinutes != null && walkMinutes <= personalPlaceRules.maxWalkMinutes) ||
+          (driveMinutes != null && driveMinutes <= personalPlaceRules.maxDriveMinutes);
+        target = `Walk <= ${personalPlaceRules.maxWalkMinutes} min OR drive <= ${personalPlaceRules.maxDriveMinutes} min`;
+      } else if (personalPlaceRules.requireWalk) {
+        passed = walkMinutes != null && walkMinutes <= personalPlaceRules.maxWalkMinutes;
+        target = `Walk <= ${personalPlaceRules.maxWalkMinutes} min`;
+      } else if (personalPlaceRules.requireDrive) {
+        passed = driveMinutes != null && driveMinutes <= personalPlaceRules.maxDriveMinutes;
+        target = `Drive <= ${personalPlaceRules.maxDriveMinutes} min`;
+      }
+
+      const label = `Personal place: ${place.label}`;
+      if (!passed) failedMustHaves.push(label);
+      requirementResults.push({
+        ruleId: `personal-place-${place.id}`,
+        label,
+        passed,
+        actual: `Walk ${formatMinutesForRequirement(walkMinutes)} • Drive ${formatMinutesForRequirement(driveMinutes)}`,
+        target
+      });
+    });
+  }
 
   if (requirementResults.length === 0) {
     const legacyResults =

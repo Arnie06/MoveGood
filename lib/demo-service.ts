@@ -408,7 +408,7 @@ async function enrichPropertyContext(
   }
   const routingDestinations = [
     ...nearbyAmenities,
-    ...preferences.savedPlaces.filter((place) => place.includeInScoring)
+    ...preferences.savedPlaces
   ];
   const estimatedRouteMetrics = buildEstimatedRouteMetrics({
     propertyId: effectiveProperty.id,

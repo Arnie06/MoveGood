@@ -89,6 +89,14 @@ export const defaultAppSettings: AppSettings = {
         minimumCount: 3,
         countRadiusMiles: 1
       }
+    },
+    personalPlaces: {
+      enabled: false,
+      requireWalk: false,
+      maxWalkMinutes: 35,
+      requireDrive: true,
+      maxDriveMinutes: 30,
+      onlyIncludedInScoring: true
     }
   },
   dataReliability: {

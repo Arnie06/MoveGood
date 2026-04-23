@@ -1,7 +1,7 @@
 {
-  "refreshedAt": "2026-04-22T05:34:48.196Z",
+  "refreshedAt": "2026-04-22T15:08:01.227Z",
   "source": "Geoapify cached export",
   "sourceDir": "/Users/alang/Documents/Personal/Apps/Housing_App/.runtime/api-cache/geoapify-los-angeles",
   "outputPath": "/Users/alang/Documents/Personal/Apps/Housing_App/data/pois/los-angeles.json",
-  "count": 8844
+  "count": 9056
 }

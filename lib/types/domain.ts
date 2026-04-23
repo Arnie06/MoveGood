@@ -202,6 +202,14 @@ export interface AppSettings {
         countRadiusMiles: number;
       }
     >;
+    personalPlaces: {
+      enabled: boolean;
+      requireWalk: boolean;
+      maxWalkMinutes: number;
+      requireDrive: boolean;
+      maxDriveMinutes: number;
+      onlyIncludedInScoring: boolean;
+    };
   };
   dataReliability: {
     localOnlyMode: boolean;

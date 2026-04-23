@@ -1,18 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { usePreferences } from "@/components/providers/preferences-provider";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
+const categoryOptions = [
+  { value: "work", label: "Work" },
+  { value: "family", label: "Family" },
+  { value: "school", label: "School" },
+  { value: "health", label: "Health" },
+  { value: "errands", label: "Errands" },
+  { value: "custom", label: "Custom" }
+] as const;
+
 export function SavedPlacesManager() {
-const { preferences, setPreferences } = usePreferences();
+  const { preferences, setPreferences } = usePreferences();
   const sortedPlaces = [...preferences.savedPlaces].sort((a, b) => {
     if (a.includeInScoring !== b.includeInScoring) return a.includeInScoring ? -1 : 1;
     return a.label.localeCompare(b.label);
   });
+  const includedCount = useMemo(
+    () => preferences.savedPlaces.filter((place) => place.includeInScoring).length,
+    [preferences.savedPlaces]
+  );
+  const excludedCount = preferences.savedPlaces.length - includedCount;
   const [label, setLabel] = useState("");
   const [category, setCategory] = useState("");
   const [address, setAddress] = useState("");
@@ -71,12 +86,17 @@ const { preferences, setPreferences } = usePreferences();
           <p className="mt-2 text-sm text-gray-600">
             Add your frequent destinations so scoring and travel checks reflect your real routine.
           </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge tone="good">{includedCount} included</Badge>
+            <Badge tone="muted">{excludedCount} excluded</Badge>
+          </div>
         </div>
         <div className="rounded-full bg-ocean/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-ocean">
           {preferences.savedPlaces.length} total
         </div>
       </div>
-      <div className="grid gap-3 rounded-2xl border border-black/10 bg-white/70 p-4">
+      <div className="grid gap-3 rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm">
+        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Add place</div>
         <div className="grid gap-3 md:grid-cols-3">
           <label className="space-y-1">
             <div className="text-sm text-gray-600">Label</div>
@@ -90,12 +110,11 @@ const { preferences, setPreferences } = usePreferences();
               onChange={(e) => setCategory(e.target.value)}
             >
               <option value="">Choose category</option>
-              <option value="work">Work</option>
-              <option value="family">Family</option>
-              <option value="school">School</option>
-              <option value="health">Health</option>
-              <option value="errands">Errands</option>
-              <option value="custom">Custom</option>
+              {categoryOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </label>
           <label className="space-y-1 md:col-span-1">
@@ -104,6 +123,12 @@ const { preferences, setPreferences } = usePreferences();
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="123 Main St, City"
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void onAddSavedPlace();
+                }
+              }}
             />
           </label>
         </div>
@@ -119,16 +144,55 @@ const { preferences, setPreferences } = usePreferences();
       </div>
       {error ? <p className="mt-3 text-sm text-clay">{error}</p> : null}
       <div className="mt-6 grid gap-3">
+        {sortedPlaces.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                setPreferences({
+                  ...preferences,
+                  savedPlaces: preferences.savedPlaces.map((place) => ({
+                    ...place,
+                    includeInScoring: true
+                  }))
+                })
+              }
+            >
+              Include all
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                setPreferences({
+                  ...preferences,
+                  savedPlaces: preferences.savedPlaces.map((place) => ({
+                    ...place,
+                    includeInScoring: false
+                  }))
+                })
+              }
+            >
+              Exclude all
+            </Button>
+          </div>
+        ) : null}
         {sortedPlaces.length === 0 ? (
           <div className="rounded-2xl border border-black/10 bg-black/[0.02] p-4 text-sm text-gray-600">
             No saved places yet. Add work, family, school, or other recurring destinations to personalize results.
           </div>
         ) : null}
         {sortedPlaces.map((place) => (
-          <div key={place.id} className="rounded-2xl bg-black/[0.03] p-4">
+          <div key={place.id} className="rounded-2xl border border-black/10 bg-white/70 p-4 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="font-medium text-ink">{place.label}</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="font-semibold text-ink">{place.label}</div>
+                  <Badge tone={place.includeInScoring ? "good" : "warn"}>
+                    {place.includeInScoring ? "Included" : "Excluded"}
+                  </Badge>
+                </div>
                 <div className="text-sm text-gray-500">{place.address}</div>
                 <div className="mt-2 text-xs uppercase tracking-wide text-gray-500">
                   {place.category}
@@ -152,7 +216,7 @@ const { preferences, setPreferences } = usePreferences();
                     })
                   }
                 >
-                  {place.includeInScoring ? "Included in scoring" : "Excluded from scoring"}
+                  {place.includeInScoring ? "Exclude from scoring" : "Include in scoring"}
                 </Button>
                 <Button
                   variant="ghost"
