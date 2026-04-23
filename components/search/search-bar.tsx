@@ -29,7 +29,7 @@ export function SearchBar({
   return (
     <form
       onSubmit={onSubmit}
-      className={`glass flex w-full items-center gap-3 rounded-[28px] border border-white/60 ${
+      className={`glass flex w-full flex-wrap items-center gap-3 rounded-[28px] border border-white/60 ${
         compact ? "p-3" : "p-4"
       }`}
     >
@@ -38,9 +38,9 @@ export function SearchBar({
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder="Search by address, place, neighborhood, or ZIP"
-        className="border-none bg-transparent px-0 py-0 shadow-none focus:shadow-none"
+        className="min-w-0 flex-1 border-none bg-transparent px-0 py-0 shadow-none focus:shadow-none"
       />
-      <Button type="submit" size={compact ? "sm" : "lg"}>
+      <Button type="submit" size={compact ? "sm" : "lg"} className="w-full sm:w-auto">
         Analyze
       </Button>
     </form>

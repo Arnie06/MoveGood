@@ -1115,7 +1115,7 @@ export function DemoMap({
 
   if (!hasMapFocus) {
     return (
-      <div className="flex h-[480px] items-center justify-center rounded-[32px] border border-dashed border-black/15 bg-white/60 p-8 text-center text-sm text-gray-500">
+      <div className="flex h-[360px] items-center justify-center rounded-[32px] border border-dashed border-black/15 bg-white/60 p-6 text-center text-sm text-gray-500 sm:h-[440px] sm:p-8 lg:h-[480px]">
         No properties match the current filters. Try relaxing a must-have or showing partial matches.
       </div>
     );
@@ -1123,7 +1123,7 @@ export function DemoMap({
 
   if (!hasMounted) {
     return (
-      <div className="flex h-[480px] items-center justify-center rounded-[32px] border border-black/10 bg-[#dce8df] p-8 text-center text-sm text-gray-500 shadow-soft">
+      <div className="flex h-[360px] items-center justify-center rounded-[32px] border border-black/10 bg-[#dce8df] p-6 text-center text-sm text-gray-500 shadow-soft sm:h-[440px] sm:p-8 lg:h-[480px]">
         Loading map and nearby context…
       </div>
     );
@@ -1134,12 +1134,12 @@ export function DemoMap({
       {topContent ? (
         <div className="border-b border-black/5 bg-white/88 p-4">{topContent}</div>
       ) : null}
-      <div className="flex flex-wrap gap-2 border-b border-black/5 bg-white/80 p-4">
+      <div className="-mx-4 flex gap-2 overflow-x-auto border-b border-black/5 bg-white/80 px-4 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:flex-wrap sm:overflow-visible sm:p-4">
         <button
           type="button"
           onClick={() => setShowPoiOverlays((current) => !current)}
           className={cn(
-            "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
+            "inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition-colors",
             showPoiOverlays
               ? "border-moss/20 bg-moss/10 text-moss"
               : "border-black/10 bg-white text-gray-600"
@@ -1162,7 +1162,7 @@ export function DemoMap({
             })
           }
           className={cn(
-            "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
+            "inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition-colors",
             showCrimeOverlay
               ? "border-clay/20 bg-clay/10 text-clay"
               : "border-black/10 bg-white text-gray-600"
@@ -1177,7 +1177,7 @@ export function DemoMap({
           type="button"
           onClick={() => setShowMustHaveMatches((current) => !current)}
           className={cn(
-            "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
+            "inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition-colors",
             showMustHaveMatches
               ? "border-moss/20 bg-moss/10 text-moss"
               : "border-black/10 bg-white text-gray-600"
@@ -1208,7 +1208,7 @@ export function DemoMap({
                     [overlay.key]: !current[overlay.key]
                   }))
                 }
-                className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition-colors"
+                className="inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition-colors"
                 style={
                   showPoiOverlays && visibleOverlays[overlay.key]
                     ? {
@@ -1250,7 +1250,7 @@ export function DemoMap({
         ) : null}
       </div>
       {showCrimeOverlay ? (
-        <div className="flex flex-wrap items-center gap-2 border-b border-black/5 bg-white/70 px-4 py-3">
+        <div className="-mx-4 flex gap-2 overflow-x-auto border-b border-black/5 bg-white/70 px-4 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:flex-wrap sm:overflow-visible">
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
             Crime Date
           </span>
@@ -1260,7 +1260,7 @@ export function DemoMap({
               type="button"
               onClick={() => setCrimeDateFilter(filter.key)}
               className={cn(
-                "rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
+                "shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
                 crimeDateFilter === filter.key
                   ? "border-ocean/20 bg-ocean/10 text-ocean"
                   : "border-black/10 bg-white text-gray-600"
@@ -1283,7 +1283,7 @@ export function DemoMap({
                 }))
               }
               className={cn(
-                "rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
+                "shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
                 crimeCategoryFilter[filter.key]
                   ? "border-clay/20 bg-clay/10 text-clay"
                   : "border-black/10 bg-white text-gray-600"
@@ -1294,9 +1294,9 @@ export function DemoMap({
           ))}
         </div>
       ) : null}
-      <div className="relative h-[480px]">
+      <div className="relative h-[360px] sm:h-[440px] lg:h-[480px]">
         <div ref={mapContainerRef} className="h-full w-full" />
-        <div className="absolute bottom-4 left-4 max-w-[300px] rounded-2xl bg-white/92 px-4 py-3 text-xs text-gray-600 shadow">
+        <div className="absolute inset-x-3 bottom-3 rounded-2xl bg-white/92 px-3 py-2 text-[11px] text-gray-600 shadow sm:bottom-4 sm:left-4 sm:right-auto sm:max-w-[300px] sm:px-4 sm:py-3 sm:text-xs">
           <div>
             Pan or zoom the map to browse the current area. POIs and crime update automatically for the visible bounds.
           </div>
@@ -1439,13 +1439,13 @@ export function DemoMap({
       ) : null}
       {activeCrimeIncident ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/35 px-4">
-          <Card className="w-full max-w-lg p-6">
+          <Card className="w-full max-w-lg p-4 sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-sm font-semibold uppercase tracking-[0.2em] text-ocean/70">
                   Crime Detail
                 </div>
-                <h3 className="mt-1 font-display text-2xl text-ink">{activeCrimeIncident.label}</h3>
+                <h3 className="mt-1 font-display text-xl text-ink sm:text-2xl">{activeCrimeIncident.label}</h3>
               </div>
               <button
                 type="button"

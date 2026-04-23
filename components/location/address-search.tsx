@@ -97,7 +97,7 @@ export function AddressSearch({
     <div className="relative">
       <form
         onSubmit={submitCurrent}
-        className="glass flex w-full items-center gap-3 rounded-[28px] border border-white/60 p-4"
+        className="glass flex w-full flex-wrap items-center gap-3 rounded-[28px] border border-white/60 p-3 sm:flex-nowrap sm:p-4"
       >
         <Search className="h-5 w-5 text-ocean" />
         <Input
@@ -112,7 +112,7 @@ export function AddressSearch({
               ? "Search an address, neighborhood, ZIP, or place"
               : "Type an address and press Analyze"
           }
-          className="border-none bg-transparent px-0 py-0 shadow-none focus:shadow-none"
+          className="min-w-0 flex-1 border-none bg-transparent px-0 py-0 shadow-none focus:shadow-none"
         />
         {hasActiveSelection ? (
           <Button
@@ -127,12 +127,12 @@ export function AddressSearch({
               onClearSelection?.();
             }}
             aria-label="Clear selected location"
-            className="h-11 w-11 rounded-full p-0"
+            className="h-11 w-11 shrink-0 rounded-full p-0"
           >
             <X className="h-4 w-4" />
           </Button>
         ) : (
-          <Button type="submit" size="lg">
+          <Button type="submit" size="lg" className="w-full sm:w-auto">
             Analyze
           </Button>
         )}

@@ -151,7 +151,7 @@ export function LocationBrowser() {
   return (
     <div className="space-y-6 pb-12">
       <section className="section-shell p-4 sm:p-6">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
+        <div className="grid gap-4 lg:gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
           <DemoMap
             items={selectedItems}
             selectedId={selected?.property.id}
@@ -185,7 +185,7 @@ export function LocationBrowser() {
             }
             showSummaryPanel={false}
           />
-          <div className="max-h-[820px] overflow-y-auto pr-1">
+          <div className="lg:max-h-[820px] lg:overflow-y-auto lg:pr-1">
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-3">
                 <Badge>{hasAnalyzeFocus ? "Selected location" : "Browse mode"}</Badge>
