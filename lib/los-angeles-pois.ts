@@ -10,7 +10,7 @@ const PARK_TILE_COLS = 4;
 const PARK_TILE_ROWS = 4;
 const PARK_MAX_PAGES_PER_TILE = 8;
 const CATEGORY_CACHE_VERSION: Partial<Record<AmenityCategory, number>> = {
-  park: 2
+  park: 3
 };
 
 // County-scale cache bounds for Los Angeles County, including Catalina and the northern desert area.
@@ -31,7 +31,6 @@ const losAngelesCategoryMap: Record<AmenityCategory, string[]> = {
     "leisure.park.garden",
     "leisure.park.nature_reserve",
     "national_park",
-    "natural",
     "natural.protected_area"
   ],
   restaurant: ["catering.restaurant", "catering.fast_food", "catering.food_court"],
